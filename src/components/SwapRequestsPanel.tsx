@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { format } from "date-fns";
 import { SwapRequestWithDetails } from "@/lib/supabase/types";
 import { Button } from "./ui/button";
@@ -14,12 +15,16 @@ interface Props {
 }
 
 export function SwapRequestsPanel({ swapRequests, currentUserId, onClose, onUpdate }: Props) {
+  const [respondingId, setRespondingId] = useState<string | null>(null);
+
   async function respond(id: string, action: "accept" | "decline" | "cancel") {
+    setRespondingId(id);
     await fetch(`/api/swap-requests/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action }),
     });
+    setRespondingId(null);
     onUpdate();
   }
 
@@ -65,8 +70,12 @@ export function SwapRequestsPanel({ swapRequests, currentUserId, onClose, onUpda
                     </div>
                   </div>
                   <div className="flex gap-2 pt-1">
-                    <Button size="sm" className="flex-1" onClick={() => respond(s.id, "accept")}>Accept</Button>
-                    <Button size="sm" variant="outline" className="flex-1" onClick={() => respond(s.id, "decline")}>Decline</Button>
+                    <Button size="sm" className="flex-1" disabled={respondingId === s.id} onClick={() => respond(s.id, "accept")}>
+                      {respondingId === s.id ? "…" : "Accept"}
+                    </Button>
+                    <Button size="sm" variant="outline" className="flex-1" disabled={respondingId === s.id} onClick={() => respond(s.id, "decline")}>
+                      {respondingId === s.id ? "…" : "Decline"}
+                    </Button>
                   </div>
                 </div>
               ))}
@@ -97,8 +106,8 @@ export function SwapRequestsPanel({ swapRequests, currentUserId, onClose, onUpda
                     </div>
                   </div>
                   {s.status === "pending" && (
-                    <Button size="sm" variant="outline" className="w-full" onClick={() => respond(s.id, "cancel")}>
-                      Cancel request
+                    <Button size="sm" variant="outline" className="w-full" disabled={respondingId === s.id} onClick={() => respond(s.id, "cancel")}>
+                      {respondingId === s.id ? "Cancelling…" : "Cancel request"}
                     </Button>
                   )}
                 </div>

@@ -22,6 +22,7 @@ export function AdminPanel({ currentUser, onClose, onSelfDemoted, onLocationsCha
   const [invites, setInvites] = useState<InvitedEmail[]>([]);
   const [newEmail, setNewEmail] = useState("");
   const [loading, setLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [showLocations, setShowLocations] = useState(false);
@@ -59,16 +60,19 @@ export function AdminPanel({ currentUser, onClose, onSelfDemoted, onLocationsCha
   }
 
   async function removeInvite(email: string) {
+    setActionLoading(email);
     const res = await fetch("/api/admin/invite", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email }),
     });
+    setActionLoading(null);
     if (res.ok) { notify("Invite removed."); await refresh(); }
     else { const d = await res.json(); notify(d.error, true); }
   }
 
   async function toggleAdmin(profile: Profile) {
+    setActionLoading(profile.id);
     const action = profile.is_admin ? "revoke_admin" : "grant_admin";
     const res = await fetch(`/api/admin/users/${profile.id}`, {
       method: "PATCH",
@@ -76,17 +80,20 @@ export function AdminPanel({ currentUser, onClose, onSelfDemoted, onLocationsCha
       body: JSON.stringify({ action }),
     });
     const data = await res.json();
+    setActionLoading(null);
     if (res.ok) { notify(`Admin ${profile.is_admin ? "revoked" : "granted"}.`); await refresh(); }
     else notify(data.error, true);
   }
 
   async function relinquishSelf() {
+    setActionLoading("relinquish");
     const res = await fetch(`/api/admin/users/${currentUser.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "relinquish_self" }),
     });
     const data = await res.json();
+    setActionLoading(null);
     if (res.ok) { onSelfDemoted(); }
     else notify(data.error, true);
   }
@@ -135,9 +142,10 @@ export function AdminPanel({ currentUser, onClose, onSelfDemoted, onLocationsCha
                     size="sm"
                     variant="outline"
                     onClick={() => toggleAdmin(p)}
+                    disabled={actionLoading === p.id}
                     className="text-xs"
                   >
-                    {p.is_admin ? "Revoke admin" : "Grant admin"}
+                    {actionLoading === p.id ? "…" : p.is_admin ? "Revoke admin" : "Grant admin"}
                   </Button>
                 )}
               </div>
@@ -175,9 +183,10 @@ export function AdminPanel({ currentUser, onClose, onSelfDemoted, onLocationsCha
                   <span className="text-sm text-gray-600">{inv.email}</span>
                   <button
                     onClick={() => removeInvite(inv.email)}
-                    className="text-xs text-red-400 hover:text-red-600"
+                    disabled={actionLoading === inv.email}
+                    className="text-xs text-red-400 hover:text-red-600 disabled:opacity-40"
                   >
-                    Remove
+                    {actionLoading === inv.email ? "…" : "Remove"}
                   </button>
                 </div>
               ))}
@@ -203,10 +212,10 @@ export function AdminPanel({ currentUser, onClose, onSelfDemoted, onLocationsCha
           <Button
             variant="destructive"
             size="sm"
-            disabled={!canRelinquish}
+            disabled={!canRelinquish || actionLoading === "relinquish"}
             onClick={relinquishSelf}
           >
-            Remove my admin status
+            {actionLoading === "relinquish" ? "Removing…" : "Remove my admin status"}
           </Button>
         </section>
 
