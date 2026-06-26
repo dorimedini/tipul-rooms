@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
     supabase.from("profiles").select("email"),
   ]);
   if (location && allProfiles?.length) {
-    emailRoomAdded({
+    await emailRoomAdded({
       toEmails: allProfiles.map(p => p.email),
       roomName: room.name,
       locationName: location.name,

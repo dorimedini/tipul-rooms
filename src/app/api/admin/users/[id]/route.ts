@@ -25,7 +25,7 @@ export async function PATCH(
     ]);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     if (grantee && granter) {
-      emailAdminGranted({ toEmail: grantee.email, toName: grantee.name, grantedByName: granter.name });
+      await emailAdminGranted({ toEmail: grantee.email, toName: grantee.name, grantedByName: granter.name });
     }
     return NextResponse.json({ ok: true });
   }

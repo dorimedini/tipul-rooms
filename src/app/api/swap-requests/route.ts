@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
   if (tgtDetails && reqDetails && requesterProfile) {
     const fmt = (a: any) =>
       `${format(a.date, "EEE MMM d")} ${a.start_time.slice(0, 5)} · ${(a.rooms as any)?.locations?.name} / ${(a.rooms as any)?.name}`;
-    emailSwapRequest({
+    await emailSwapRequest({
       toEmail: (tgtDetails.profiles as any).email,
       toName: (tgtDetails.profiles as any).name,
       requesterName: requesterProfile.name,

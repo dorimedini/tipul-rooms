@@ -24,7 +24,7 @@ export async function DELETE(
   // Email all users
   const { data: allProfiles } = await supabase.from("profiles").select("email");
   if (roomDetails && allProfiles?.length) {
-    emailRoomRemoved({
+    await emailRoomRemoved({
       toEmails: allProfiles.map(p => p.email),
       roomName: roomDetails.name,
       locationName: (roomDetails.locations as any)?.name ?? "",
