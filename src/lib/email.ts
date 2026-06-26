@@ -3,7 +3,8 @@ import nodemailer from "nodemailer";
 function getTransport() {
   return nodemailer.createTransport({
     host: "smtp.gmail.com",
-    port: 587,
+    port: 465,
+    secure: true,
     auth: {
       user: process.env.GMAIL_USER,
       pass: process.env.GMAIL_APP_PASSWORD,
@@ -24,8 +25,12 @@ ${body}
 }
 
 async function send(to: string | string[], subject: string, body: string) {
-  if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) return;
+  if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
+    console.error("[email] missing GMAIL_USER or GMAIL_APP_PASSWORD");
+    return;
+  }
   const targets = Array.isArray(to) ? to : [to];
+  console.log("[email] sending to:", targets, "subject:", subject);
   try {
     await Promise.all(
       targets.map(t =>
@@ -37,6 +42,7 @@ async function send(to: string | string[], subject: string, body: string) {
         })
       )
     );
+    console.log("[email] sent ok");
   } catch (err) {
     console.error("[email] send failed:", err);
   }

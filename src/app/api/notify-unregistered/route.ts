@@ -18,7 +18,7 @@ export async function POST() {
     .from("profiles").select("email").eq("is_admin", true);
 
   if (admins?.length) {
-    emailUnregisteredLogin({
+    await emailUnregisteredLogin({
       toEmails: admins.map(a => a.email),
       attemptedEmail: user.email ?? "unknown",
     });
