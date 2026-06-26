@@ -6,15 +6,17 @@ import { Profile, InvitedEmail } from "@/lib/supabase/types";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Alert, AlertDescription } from "./ui/alert";
+import { LocationsManager } from "./LocationsManager";
 import { format, parseISO } from "date-fns";
 
 interface Props {
   currentUser: Profile;
   onClose: () => void;
   onSelfDemoted: () => void;
+  onLocationsChanged: () => void;
 }
 
-export function AdminPanel({ currentUser, onClose, onSelfDemoted }: Props) {
+export function AdminPanel({ currentUser, onClose, onSelfDemoted, onLocationsChanged }: Props) {
   const supabase = createClient();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [invites, setInvites] = useState<InvitedEmail[]>([]);
@@ -22,6 +24,7 @@ export function AdminPanel({ currentUser, onClose, onSelfDemoted }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [showLocations, setShowLocations] = useState(false);
 
   const refresh = useCallback(async () => {
     const [{ data: p }, { data: i }] = await Promise.all([
@@ -182,6 +185,14 @@ export function AdminPanel({ currentUser, onClose, onSelfDemoted }: Props) {
           </section>
         )}
 
+        {/* Locations & Rooms */}
+        <section className="pt-2 border-t">
+          <h3 className="text-xs font-semibold text-gray-400 uppercase mb-2">Locations &amp; Rooms</h3>
+          <Button variant="outline" size="sm" onClick={() => setShowLocations(true)}>
+            Manage locations &amp; rooms
+          </Button>
+        </section>
+
         {/* Relinquish own admin */}
         <section className="pt-2 border-t">
           <h3 className="text-xs font-semibold text-gray-400 uppercase mb-2">Relinquish admin</h3>
@@ -202,6 +213,12 @@ export function AdminPanel({ currentUser, onClose, onSelfDemoted }: Props) {
         {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
         {success && <Alert><AlertDescription>{success}</AlertDescription></Alert>}
       </div>
+
+      <LocationsManager
+        open={showLocations}
+        onClose={() => setShowLocations(false)}
+        onChanged={onLocationsChanged}
+      />
     </div>
   );
 }

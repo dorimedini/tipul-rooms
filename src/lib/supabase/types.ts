@@ -69,6 +69,12 @@ export interface Database {
         };
         Relationships: [];
       };
+      room_hours: {
+        Row: { id: string; room_id: string; day_of_week: number; open_time: string; close_time: string };
+        Insert: { id?: string; room_id: string; day_of_week: number; open_time: string; close_time: string };
+        Update: { id?: string; room_id?: string; day_of_week?: number; open_time?: string; close_time?: string };
+        Relationships: [];
+      };
       swap_requests: {
         Row: {
           id: string; requester_id: string; requester_allocation_id: string;
@@ -102,6 +108,8 @@ export type Location = Database["public"]["Tables"]["locations"]["Row"];
 export type Room = Database["public"]["Tables"]["rooms"]["Row"];
 export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 export type InvitedEmail = Database["public"]["Tables"]["invited_emails"]["Row"];
+export type RoomHours = Database["public"]["Tables"]["room_hours"]["Row"];
+export type RoomWithHours = Room & { room_hours: RoomHours[] };
 export type AllocationSeries = Database["public"]["Tables"]["allocation_series"]["Row"];
 export type Allocation = Database["public"]["Tables"]["allocations"]["Row"];
 export type SwapRequest = Database["public"]["Tables"]["swap_requests"]["Row"];

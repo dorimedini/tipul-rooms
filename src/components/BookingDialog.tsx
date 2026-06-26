@@ -79,7 +79,12 @@ export function BookingDialog({ slot, rooms, currentUser, locations, onClose, on
             <Label>Location & Room</Label>
             <Select value={roomId} onValueChange={v => v && setRoomId(v)}>
               <SelectTrigger>
-                <SelectValue />
+                <span className="flex flex-1 text-left">
+                  {(() => {
+                    const r = rooms.find(r => r.id === roomId);
+                    return r ? `${r.locations?.name} · ${r.name}` : "Select room…";
+                  })()}
+                </span>
               </SelectTrigger>
               <SelectContent>
                 {locations.map(loc => (
@@ -108,8 +113,10 @@ export function BookingDialog({ slot, rooms, currentUser, locations, onClose, on
             </div>
             <div className="grid gap-2">
               <Label>Duration</Label>
-              <Select value={String(duration)} onValueChange={v => setDuration(Number(v))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Select value={String(duration)} onValueChange={v => v && setDuration(Number(v))}>
+                <SelectTrigger>
+                  <span className="flex flex-1 text-left">{minutesToTimeLabel(duration)}</span>
+                </SelectTrigger>
                 <SelectContent>
                   {DURATION_OPTIONS.map(d => (
                     <SelectItem key={d} value={String(d)}>{minutesToTimeLabel(d)}</SelectItem>

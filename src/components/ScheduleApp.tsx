@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Location, Room, Profile, AllocationWithDetails, SwapRequestWithDetails } from "@/lib/supabase/types";
 import { WeeklyCalendar } from "./WeeklyCalendar";
@@ -25,6 +26,7 @@ type SidePanel = "swaps" | "admin" | null;
 
 export function ScheduleApp({ currentUser, locations, rooms, allProfiles }: Props) {
   const supabase = createClient();
+  const router = useRouter();
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 0 }));
   const [selectedLocationId, setSelectedLocationId] = useState<string>(locations[0]?.id ?? "");
   const [allocations, setAllocations] = useState<AllocationWithDetails[]>([]);
@@ -178,10 +180,8 @@ export function ScheduleApp({ currentUser, locations, rooms, allProfiles }: Prop
             <AdminPanel
               currentUser={currentUser}
               onClose={() => setSidePanel(null)}
-              onSelfDemoted={() => {
-                setSidePanel(null);
-                window.location.reload();
-              }}
+              onSelfDemoted={() => { setSidePanel(null); window.location.reload(); }}
+              onLocationsChanged={() => router.refresh()}
             />
           </aside>
         )}

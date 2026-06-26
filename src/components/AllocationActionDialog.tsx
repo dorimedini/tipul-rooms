@@ -150,7 +150,13 @@ export function AllocationActionDialog({
                   <div className="mt-2 pt-2 border-t">
                     <Label className="text-sm mb-2 block">Request swap with</Label>
                     <Select value={swapTargetId} onValueChange={v => v && setSwapTargetId(v)}>
-                      <SelectTrigger><SelectValue placeholder="Select a session to swap with…" /></SelectTrigger>
+                      <SelectTrigger>
+                        <span className="flex flex-1 text-left text-sm">
+                          {swapTargetId
+                            ? (() => { const a = swappableAllocations.find(a => a.id === swapTargetId); return a ? `${a.profiles?.name} · ${format(a.date, "MMM d")} ${a.start_time.slice(0, 5)}` : ""; })()
+                            : <span className="text-muted-foreground">Select a session to swap with…</span>}
+                        </span>
+                      </SelectTrigger>
                       <SelectContent>
                         {swappableAllocations.map(a => (
                           <SelectItem key={a.id} value={a.id}>
@@ -179,7 +185,13 @@ export function AllocationActionDialog({
                   <div className="mt-2">
                     <Label className="text-sm mb-2 block">Offer one of your slots in exchange</Label>
                     <Select value={swapTargetId} onValueChange={v => v && setSwapTargetId(v)}>
-                      <SelectTrigger><SelectValue placeholder="Your session to offer…" /></SelectTrigger>
+                      <SelectTrigger>
+                        <span className="flex flex-1 text-left text-sm">
+                          {swapTargetId
+                            ? (() => { const a = allAllocations.find(a => a.id === swapTargetId); return a ? `${format(a.date, "MMM d")} ${a.start_time.slice(0, 5)} · ${(a as any).rooms?.name}` : ""; })()
+                            : <span className="text-muted-foreground">Your session to offer…</span>}
+                        </span>
+                      </SelectTrigger>
                       <SelectContent>
                         {allAllocations.filter(a => a.user_id === currentUserId).map(a => (
                           <SelectItem key={a.id} value={a.id}>
@@ -250,7 +262,11 @@ export function AllocationActionDialog({
             <div className="grid gap-2">
               <Label>New room</Label>
               <Select value={newRoomId} onValueChange={v => v && setNewRoomId(v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger>
+                  <span className="flex flex-1 text-left">
+                    {(() => { const r = rooms.find(r => r.id === newRoomId); return r ? `${r.locations?.name} · ${r.name}` : "Select room…"; })()}
+                  </span>
+                </SelectTrigger>
                 <SelectContent>
                   {rooms.map(r => (
                     <SelectItem key={r.id} value={r.id}>{r.locations?.name} · {r.name}</SelectItem>
@@ -271,7 +287,9 @@ export function AllocationActionDialog({
               <div className="grid gap-2">
                 <Label>Duration</Label>
                 <Select value={String(newDuration)} onValueChange={v => v && setNewDuration(Number(v))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger>
+                    <span className="flex flex-1 text-left">{minutesToTimeLabel(newDuration)}</span>
+                  </SelectTrigger>
                   <SelectContent>
                     {DURATION_OPTIONS.map(d => <SelectItem key={d} value={String(d)}>{minutesToTimeLabel(d)}</SelectItem>)}
                   </SelectContent>
