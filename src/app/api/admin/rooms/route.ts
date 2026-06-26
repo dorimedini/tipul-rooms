@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { emailRoomAdded } from "@/lib/email";
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
@@ -29,6 +30,19 @@ export async function POST(req: NextRequest) {
       }))
     );
     if (hoursErr) return NextResponse.json({ error: hoursErr.message }, { status: 500 });
+  }
+
+  // Email all users
+  const [{ data: location }, { data: allProfiles }] = await Promise.all([
+    supabase.from("locations").select("name").eq("id", locationId).single(),
+    supabase.from("profiles").select("email"),
+  ]);
+  if (location && allProfiles?.length) {
+    emailRoomAdded({
+      toEmails: allProfiles.map(p => p.email),
+      roomName: room.name,
+      locationName: location.name,
+    });
   }
 
   return NextResponse.json(room);

@@ -27,7 +27,11 @@ export async function proxy(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser();
   const path = request.nextUrl.pathname;
-  const isPublic = path.startsWith("/login") || path.startsWith("/auth") || path.startsWith("/unauthorized");
+  const isPublic =
+    path.startsWith("/login") ||
+    path.startsWith("/auth") ||
+    path.startsWith("/unauthorized") ||
+    path === "/api/notify-unregistered";
 
   if (!user && !isPublic) {
     const url = request.nextUrl.clone();

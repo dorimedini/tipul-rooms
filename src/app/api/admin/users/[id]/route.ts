@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { emailAdminGranted } from "@/lib/email";
 
 export async function PATCH(
   req: NextRequest,
@@ -17,9 +18,15 @@ export async function PATCH(
   const { action } = await req.json(); // "grant_admin" | "revoke_admin" | "relinquish_self"
 
   if (action === "grant_admin") {
-    const { error } = await supabase
-      .from("profiles").update({ is_admin: true }).eq("id", id);
+    const [{ error }, { data: grantee }, { data: granter }] = await Promise.all([
+      supabase.from("profiles").update({ is_admin: true }).eq("id", id),
+      supabase.from("profiles").select("name, email").eq("id", id).single(),
+      supabase.from("profiles").select("name").eq("id", user.id).single(),
+    ]);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (grantee && granter) {
+      emailAdminGranted({ toEmail: grantee.email, toName: grantee.name, grantedByName: granter.name });
+    }
     return NextResponse.json({ ok: true });
   }
 

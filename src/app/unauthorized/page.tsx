@@ -1,9 +1,17 @@
 "use client";
 
+import { useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 
 export default function UnauthorizedPage() {
+  useEffect(() => {
+    const key = "notify-unregistered-sent";
+    if (sessionStorage.getItem(key)) return;
+    sessionStorage.setItem(key, "1");
+    fetch("/api/notify-unregistered", { method: "POST" }).catch(() => {});
+  }, []);
+
   async function signOut() {
     const supabase = createClient();
     await supabase.auth.signOut();

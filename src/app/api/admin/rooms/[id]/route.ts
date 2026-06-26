@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { emailRoomRemoved } from "@/lib/email";
 
 export async function DELETE(
   _req: NextRequest,
@@ -24,8 +25,23 @@ export async function DELETE(
     );
   }
 
+  // Fetch room+location name before deleting
+  const { data: roomDetails } = await supabase
+    .from("rooms").select("name, locations(name)").eq("id", id).single();
+
   const { error } = await supabase.from("rooms").delete().eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Email all users
+  const { data: allProfiles } = await supabase.from("profiles").select("email");
+  if (roomDetails && allProfiles?.length) {
+    emailRoomRemoved({
+      toEmails: allProfiles.map(p => p.email),
+      roomName: roomDetails.name,
+      locationName: (roomDetails.locations as any)?.name ?? "",
+    });
+  }
+
   return NextResponse.json({ ok: true });
 }
 
