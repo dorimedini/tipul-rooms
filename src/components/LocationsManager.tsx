@@ -64,14 +64,20 @@ export function LocationsManager({ open, onClose, onChanged }: Props) {
     else { const d = await res.json(); notify(d.error); }
   }
 
-  async function deleteLocation(id: string) {
-    const res = await fetch(`/api/admin/locations/${id}`, { method: "DELETE" });
+  async function deleteLocation(loc: Location) {
+    const roomCount = roomsByLocation[loc.id]?.length ?? 0;
+    const msg = roomCount > 0
+      ? `Delete location "${loc.name}"? This will also delete ${roomCount} room(s) and all their bookings.`
+      : `Delete location "${loc.name}"?`;
+    if (!window.confirm(msg)) return;
+    const res = await fetch(`/api/admin/locations/${loc.id}`, { method: "DELETE" });
     if (res.ok) { await refresh(); onChanged(); }
     else { const d = await res.json(); notify(d.error); }
   }
 
-  async function deleteRoom(id: string) {
-    const res = await fetch(`/api/admin/rooms/${id}`, { method: "DELETE" });
+  async function deleteRoom(room: RoomWithHours) {
+    if (!window.confirm(`Delete room "${room.name}"? This will also delete all bookings in this room.`)) return;
+    const res = await fetch(`/api/admin/rooms/${room.id}`, { method: "DELETE" });
     if (res.ok) { await refresh(); onChanged(); }
     else { const d = await res.json(); notify(d.error); }
   }
@@ -158,7 +164,7 @@ export function LocationsManager({ open, onClose, onChanged }: Props) {
                     size="sm"
                     variant="ghost"
                     className="text-red-400 hover:text-red-600"
-                    onClick={() => deleteLocation(loc.id)}
+                    onClick={() => deleteLocation(loc)}
                   >
                     Delete location
                   </Button>
@@ -191,7 +197,7 @@ export function LocationsManager({ open, onClose, onChanged }: Props) {
                         size="sm"
                         variant="ghost"
                         className="text-red-400 hover:text-red-600"
-                        onClick={() => deleteRoom(room.id)}
+                        onClick={() => deleteRoom(room)}
                       >
                         Delete
                       </Button>

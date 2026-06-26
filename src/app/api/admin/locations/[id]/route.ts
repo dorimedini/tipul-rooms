@@ -13,16 +13,6 @@ export async function DELETE(
 
   const { id } = await params;
 
-  // Block if location still has rooms
-  const { count } = await supabase
-    .from("rooms").select("id", { count: "exact", head: true }).eq("location_id", id);
-  if (count && count > 0) {
-    return NextResponse.json(
-      { error: `Remove all rooms in this location first (${count} remaining)` },
-      { status: 409 }
-    );
-  }
-
   const { error } = await supabase.from("locations").delete().eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });

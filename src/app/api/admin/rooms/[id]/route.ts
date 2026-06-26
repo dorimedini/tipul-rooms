@@ -14,17 +14,6 @@ export async function DELETE(
 
   const { id } = await params;
 
-  // Block if room has active allocations
-  const { count } = await supabase
-    .from("allocations").select("id", { count: "exact", head: true })
-    .eq("room_id", id).eq("status", "active");
-  if (count && count > 0) {
-    return NextResponse.json(
-      { error: `Room has ${count} active allocation(s). Cancel them first.` },
-      { status: 409 }
-    );
-  }
-
   // Fetch room+location name before deleting
   const { data: roomDetails } = await supabase
     .from("rooms").select("name, locations(name)").eq("id", id).single();
