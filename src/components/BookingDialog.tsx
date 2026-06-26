@@ -13,7 +13,7 @@ import { START_TIMES, DURATION_OPTIONS, minutesToTimeLabel } from "@/lib/allocat
 type RoomWithLocation = Room & { locations: Location };
 
 interface Props {
-  slot: { roomId: string; date: Date; startTime: string };
+  slot: { roomId: string; date: Date; startTime: string; durationMinutes?: number };
   rooms: RoomWithLocation[];
   currentUser: Profile;
   allProfiles: Profile[];
@@ -25,7 +25,7 @@ interface Props {
 export function BookingDialog({ slot, rooms, currentUser, locations, onClose, onSaved }: Props) {
   const [roomId, setRoomId] = useState(slot.roomId);
   const [startTime, setStartTime] = useState(slot.startTime);
-  const [duration, setDuration] = useState(60);
+  const [duration, setDuration] = useState(slot.durationMinutes ?? 60);
   const [recurring, setRecurring] = useState(false);
   const [title, setTitle] = useState("");
   const [seriesEnd, setSeriesEnd] = useState(format(addMonths(slot.date, 10), "yyyy-MM-dd"));

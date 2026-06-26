@@ -37,7 +37,7 @@ export function ScheduleApp({ currentUser, locations, rooms, allProfiles }: Prop
   const [mobileDayIndex, setMobileDayIndex] = useState(() => new Date().getDay());
   const [calendarView, setCalendarView] = useState<"day" | "week">("week");
 
-  const [bookingSlot, setBookingSlot] = useState<{ roomId: string; date: Date; startTime: string } | null>(null);
+  const [bookingSlot, setBookingSlot] = useState<{ roomId: string; date: Date; startTime: string; durationMinutes?: number } | null>(null);
   const [actionAllocation, setActionAllocation] = useState<AllocationWithDetails | null>(null);
 
   const weekEnd = endOfWeek(weekStart, { weekStartsOn: 0 });
@@ -243,7 +243,7 @@ export function ScheduleApp({ currentUser, locations, rooms, allProfiles }: Prop
               currentUserId={currentUser.id}
               loading={loading}
               fitScreen={isMobile && calendarView === "week"}
-              onSlotClick={(roomId, date, startTime) => setBookingSlot({ roomId, date, startTime })}
+              onSlotClick={(roomId, date, startTime, durationMinutes) => setBookingSlot({ roomId, date, startTime, durationMinutes })}
               onAllocationClick={setActionAllocation}
             />
           )}

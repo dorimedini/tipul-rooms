@@ -1,10 +1,19 @@
 "use client";
 
+import { useRef, useEffect, useState } from "react";
 import { format, isSameDay } from "date-fns";
 import { AllocationWithDetails } from "@/lib/supabase/types";
-import { timeToMinutes, minutesToTime, START_TIMES } from "@/lib/allocations";
+import { timeToMinutes, minutesToTime } from "@/lib/allocations";
 
 interface Room { id: string; name: string; location_id: string }
+
+type DragState = {
+  roomId: string;
+  day: Date;
+  startMin: number;
+  endMin: number;
+  cellTop: number;
+};
 
 interface Props {
   days: Date[];
@@ -13,14 +22,15 @@ interface Props {
   currentUserId: string;
   loading: boolean;
   fitScreen?: boolean;
-  onSlotClick: (roomId: string, date: Date, startTime: string) => void;
+  onSlotClick: (roomId: string, date: Date, startTime: string, durationMinutes?: number) => void;
   onAllocationClick: (allocation: AllocationWithDetails) => void;
 }
 
 const SLOT_HEIGHT = 16; // px per 15 minutes
-const DAY_START = 7 * 60; // 7:00 AM in minutes
-const DAY_END = 22 * 60; // 10:00 PM in minutes
+const DAY_START = 7 * 60;
+const DAY_END = 22 * 60;
 const TOTAL_MINUTES = DAY_END - DAY_START;
+const DRAG_THRESHOLD = SLOT_HEIGHT; // px of movement before it counts as a drag
 
 const COLORS = [
   "bg-blue-100 border-blue-400 text-blue-900",
@@ -42,31 +52,133 @@ function shortHour(label: string): string {
   return String(parseInt(label.split(":")[0], 10));
 }
 
-export function WeeklyCalendar({ days, rooms, allocations, currentUserId, loading, fitScreen = false, onSlotClick, onAllocationClick }: Props) {
+export function WeeklyCalendar({
+  days, rooms, allocations, currentUserId, loading,
+  fitScreen = false, onSlotClick, onAllocationClick,
+}: Props) {
   const allUserIds = [...new Set(allocations.map(a => a.user_id))];
 
   const timeLabels: string[] = [];
   for (let m = DAY_START; m <= DAY_END; m += 60) {
     timeLabels.push(minutesToTime(m));
   }
-
   const totalHeight = (TOTAL_MINUTES / 15) * SLOT_HEIGHT;
+
+  // ── Drag-to-create ────────────────────────────────────────────────────────
+  const [drag, setDrag] = useState<DragState | null>(null);
+  const dragRef = useRef<DragState | null>(null);
+  dragRef.current = drag;
+
+  // Keep latest callback without re-registering event handlers
+  const onSlotClickRef = useRef(onSlotClick);
+  onSlotClickRef.current = onSlotClick;
+
+  const didDrag = useRef(false);
+  const pointerDownY = useRef(0);
+
+  // Set body cursor + prevent text selection while dragging
+  useEffect(() => {
+    if (drag) {
+      document.body.style.userSelect = "none";
+      document.body.style.cursor = "ns-resize";
+    } else {
+      document.body.style.userSelect = "";
+      document.body.style.cursor = "";
+    }
+  }, [drag != null]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    function yToMin(clientY: number): number {
+      const d = dragRef.current;
+      if (!d) return DAY_START;
+      const rawY = clientY - d.cellTop;
+      const clampedY = Math.max(0, Math.min(totalHeight, rawY));
+      return Math.min(DAY_END, DAY_START + Math.round(clampedY / SLOT_HEIGHT) * 15);
+    }
+
+    function finish(clientY: number) {
+      const d = dragRef.current;
+      if (!d) return;
+      if (didDrag.current) {
+        const endMin = yToMin(clientY);
+        const start = Math.min(d.startMin, endMin);
+        const end = Math.max(d.startMin, endMin);
+        const duration = Math.max(15, end - start);
+        onSlotClickRef.current(d.roomId, d.day, minutesToTime(start), duration);
+      } else {
+        // Plain click — open with default 60-min duration
+        onSlotClickRef.current(d.roomId, d.day, minutesToTime(d.startMin));
+      }
+      setDrag(null);
+      didDrag.current = false;
+    }
+
+    function onMouseMove(e: MouseEvent) {
+      const d = dragRef.current;
+      if (!d) return;
+      if (!didDrag.current && Math.abs(e.clientY - pointerDownY.current) > DRAG_THRESHOLD) {
+        didDrag.current = true;
+      }
+      if (!didDrag.current) return;
+      const endMin = yToMin(e.clientY);
+      setDrag(prev => prev ? { ...prev, endMin } : null);
+    }
+
+    function onMouseUp(e: MouseEvent) {
+      if (!dragRef.current) return;
+      finish(e.clientY);
+    }
+
+    function onTouchMove(e: TouchEvent) {
+      const d = dragRef.current;
+      if (!d) return;
+      const y = e.touches[0].clientY;
+      if (!didDrag.current && Math.abs(y - pointerDownY.current) > DRAG_THRESHOLD) {
+        didDrag.current = true;
+      }
+      if (!didDrag.current) return;
+      e.preventDefault(); // prevent page scroll during drag (requires passive:false below)
+      const endMin = yToMin(y);
+      setDrag(prev => prev ? { ...prev, endMin } : null);
+    }
+
+    function onTouchEnd(e: TouchEvent) {
+      if (!dragRef.current) return;
+      finish(e.changedTouches[0].clientY);
+    }
+
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+    window.addEventListener("touchmove", onTouchMove, { passive: false });
+    window.addEventListener("touchend", onTouchEnd);
+    return () => {
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("touchend", onTouchEnd);
+      document.body.style.userSelect = "";
+      document.body.style.cursor = "";
+    };
+  }, [totalHeight]); // totalHeight is constant; effect runs once
+
+  function beginDrag(room: Room, day: Date, clientY: number, cellTop: number) {
+    const y = clientY - cellTop;
+    const startMin = Math.max(
+      DAY_START,
+      Math.min(DAY_END - 15, DAY_START + Math.floor(y / SLOT_HEIGHT) * 15),
+    );
+    pointerDownY.current = clientY;
+    didDrag.current = false;
+    setDrag({ roomId: room.id, day, startMin, endMin: Math.min(DAY_END, startMin + 60), cellTop });
+  }
+  // ─────────────────────────────────────────────────────────────────────────
 
   function positionStyle(startTime: string, durationMinutes: number) {
     const startMin = timeToMinutes(startTime) - DAY_START;
-    const top = (startMin / 15) * SLOT_HEIGHT;
-    const height = (durationMinutes / 15) * SLOT_HEIGHT;
-    return { top, height };
-  }
-
-  function handleSlotClick(room: Room, day: Date, e: React.MouseEvent<HTMLDivElement>) {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const clickY = e.clientY - rect.top;
-    const minutesFromStart = Math.floor((clickY / SLOT_HEIGHT) * 15 / 15) * 15;
-    const totalMinutes = DAY_START + minutesFromStart;
-    const clamped = Math.max(DAY_START, Math.min(DAY_END - 30, totalMinutes));
-    const snapped = Math.round(clamped / 15) * 15;
-    onSlotClick(room.id, day, minutesToTime(snapped));
+    return {
+      top: (startMin / 15) * SLOT_HEIGHT,
+      height: (durationMinutes / 15) * SLOT_HEIGHT,
+    };
   }
 
   const gutterClass = fitScreen ? "w-8 shrink-0" : "w-12 shrink-0";
@@ -75,7 +187,7 @@ export function WeeklyCalendar({ days, rooms, allocations, currentUserId, loadin
 
   return (
     <div className={fitScreen ? "w-full" : "overflow-x-auto"}>
-      {/* Header: day columns per room */}
+      {/* Header */}
       <div className="flex" style={outerStyle}>
         <div className={gutterClass} />
         {rooms.map(room => (
@@ -111,8 +223,7 @@ export function WeeklyCalendar({ days, rooms, allocations, currentUserId, loadin
         <div className={`${gutterClass} relative`} style={{ height: totalHeight }}>
           {timeLabels.map((label, i) => {
             if (fitScreen && i % 2 !== 0) return null;
-            const offsetMin = timeToMinutes(label) - DAY_START;
-            const top = (offsetMin / 15) * SLOT_HEIGHT;
+            const top = ((timeToMinutes(label) - DAY_START) / 15) * SLOT_HEIGHT;
             return (
               <div
                 key={label}
@@ -134,23 +245,48 @@ export function WeeklyCalendar({ days, rooms, allocations, currentUserId, loadin
             {days.map(day => {
               const dayStr = format(day, "yyyy-MM-dd");
               const dayAllocations = allocations.filter(
-                a => a.room_id === room.id && a.date === dayStr
+                a => a.room_id === room.id && a.date === dayStr,
               );
+
+              // Drag preview for this specific cell
+              const cellDrag =
+                drag && drag.roomId === room.id && isSameDay(drag.day, day) ? drag : null;
+              const previewTop = cellDrag
+                ? ((Math.min(cellDrag.startMin, cellDrag.endMin) - DAY_START) / 15) * SLOT_HEIGHT
+                : 0;
+              const previewHeight = cellDrag
+                ? Math.max(SLOT_HEIGHT, ((Math.abs(cellDrag.endMin - cellDrag.startMin)) / 15) * SLOT_HEIGHT)
+                : 0;
+
               return (
                 <div
                   key={dayStr}
-                  className="relative border-r border-b cursor-pointer hover:bg-gray-50 transition-colors"
-                  style={{ height: totalHeight }}
-                  onClick={(e) => handleSlotClick(room, day, e)}
+                  className="relative border-r border-b select-none touch-none"
+                  style={{ height: totalHeight, cursor: "crosshair" }}
+                  onMouseDown={e => {
+                    if (e.button !== 0) return;
+                    e.preventDefault();
+                    beginDrag(room, day, e.clientY, e.currentTarget.getBoundingClientRect().top);
+                  }}
+                  onTouchStart={e => {
+                    beginDrag(room, day, e.touches[0].clientY, e.currentTarget.getBoundingClientRect().top);
+                  }}
                 >
+                  {/* Hour grid lines */}
                   {timeLabels.map(label => {
-                    const offsetMin = timeToMinutes(label) - DAY_START;
-                    const top = (offsetMin / 15) * SLOT_HEIGHT;
-                    return (
-                      <div key={label} className="absolute w-full border-t border-gray-100" style={{ top }} />
-                    );
+                    const top = ((timeToMinutes(label) - DAY_START) / 15) * SLOT_HEIGHT;
+                    return <div key={label} className="absolute w-full border-t border-gray-100" style={{ top }} />;
                   })}
 
+                  {/* Drag preview rectangle */}
+                  {cellDrag && (
+                    <div
+                      className="absolute left-0.5 right-0.5 rounded border-2 border-blue-400 bg-blue-100 opacity-70 z-20 pointer-events-none"
+                      style={{ top: previewTop, height: previewHeight }}
+                    />
+                  )}
+
+                  {/* Allocations */}
                   {dayAllocations.map(alloc => {
                     const { top, height } = positionStyle(alloc.start_time, alloc.duration_minutes);
                     const isOwn = alloc.user_id === currentUserId;
@@ -158,10 +294,12 @@ export function WeeklyCalendar({ days, rooms, allocations, currentUserId, loadin
                     return (
                       <div
                         key={alloc.id}
-                        className={`absolute left-0.5 right-0.5 rounded border-l-2 overflow-hidden cursor-pointer z-10 ${color} ${isOwn ? "ring-1 ring-offset-0 ring-current" : ""} ${fitScreen ? "" : "px-1"}`}
-                        style={{ top: top + 1, height: height - 2 }}
-                        onClick={(e) => { e.stopPropagation(); onAllocationClick(alloc); }}
-                        title={[alloc.profiles?.name, alloc.title, `${alloc.start_time.slice(0,5)} (${alloc.duration_minutes}min)`].filter(Boolean).join(" · ")}
+                        className={`absolute left-0.5 right-0.5 rounded border-l-2 overflow-hidden z-10 ${color} ${isOwn ? "ring-1 ring-offset-0 ring-current" : ""} ${fitScreen ? "" : "px-1"}`}
+                        style={{ top: top + 1, height: height - 2, cursor: "pointer" }}
+                        onMouseDown={e => e.stopPropagation()}
+                        onTouchStart={e => e.stopPropagation()}
+                        onClick={e => { e.stopPropagation(); onAllocationClick(alloc); }}
+                        title={[alloc.profiles?.name, alloc.title, `${alloc.start_time.slice(0, 5)} (${alloc.duration_minutes}min)`].filter(Boolean).join(" · ")}
                       >
                         {!fitScreen && (
                           <>
@@ -180,9 +318,7 @@ export function WeeklyCalendar({ days, rooms, allocations, currentUserId, loadin
                     );
                   })}
 
-                  {loading && (
-                    <div className="absolute inset-0 bg-white/50" />
-                  )}
+                  {loading && <div className="absolute inset-0 bg-white/50" />}
                 </div>
               );
             })}

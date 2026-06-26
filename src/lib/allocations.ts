@@ -54,8 +54,8 @@ export function formatDateForDB(date: Date): string {
   return format(date, "yyyy-MM-dd");
 }
 
-export const DURATION_OPTIONS = Array.from({ length: 19 }, (_, i) => 30 + i * 5);
-// 30, 35, 40, ..., 120
+// 15 min → 4 h in 15-minute steps (matches drag snapping)
+export const DURATION_OPTIONS = Array.from({ length: 16 }, (_, i) => (i + 1) * 15);
 
 export const START_TIMES: string[] = [];
 for (let h = 7; h <= 22; h++) {
