@@ -35,13 +35,14 @@ export function ScheduleApp({ currentUser, locations, rooms, allProfiles }: Prop
   const [sidePanel, setSidePanel] = useState<SidePanel>(null);
   const [isMobile, setIsMobile] = useState(false);
   const [mobileDayIndex, setMobileDayIndex] = useState(() => new Date().getDay());
+  const [calendarView, setCalendarView] = useState<"day" | "week">("week");
 
   const [bookingSlot, setBookingSlot] = useState<{ roomId: string; date: Date; startTime: string } | null>(null);
   const [actionAllocation, setActionAllocation] = useState<AllocationWithDetails | null>(null);
 
   const weekEnd = endOfWeek(weekStart, { weekStartsOn: 0 });
   const allDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
-  const displayDays = isMobile ? [allDays[mobileDayIndex]] : allDays;
+  const displayDays = calendarView === "day" ? [allDays[mobileDayIndex]] : allDays;
 
   useEffect(() => {
     const handler = () => setIsMobile(window.innerWidth < 768);
@@ -192,27 +193,42 @@ export function ScheduleApp({ currentUser, locations, rooms, allProfiles }: Prop
       <div className="flex flex-1 overflow-hidden">
         <main className="flex-1 overflow-auto p-4">
           {/* Navigation bar */}
-          <div className="flex items-center gap-3 mb-4">
-            {/* Desktop: week navigation */}
-            <div className="hidden md:flex items-center gap-3">
-              <Button variant="outline" size="sm" onClick={() => setWeekStart(d => subWeeks(d, 1))}>←</Button>
-              <span className="text-sm font-medium text-gray-700 min-w-[180px] text-center">
-                {format(weekStart, "MMM d")} – {format(weekEnd, "MMM d, yyyy")}
-              </span>
-              <Button variant="outline" size="sm" onClick={() => setWeekStart(d => addWeeks(d, 1))}>→</Button>
-              <Button variant="ghost" size="sm" onClick={() => setWeekStart(startOfWeek(new Date(), { weekStartsOn: 0 }))}>
-                Today
-              </Button>
+          <div className="flex items-center gap-2 mb-4 flex-wrap">
+            {/* Day/Week toggle */}
+            <div className="flex rounded-md border overflow-hidden text-sm shrink-0">
+              <button
+                className={`px-3 py-1 ${calendarView === "day" ? "bg-blue-100 text-blue-700 font-medium" : "text-gray-600"}`}
+                onClick={() => setCalendarView("day")}
+              >Day</button>
+              <button
+                className={`px-3 py-1 border-l ${calendarView === "week" ? "bg-blue-100 text-blue-700 font-medium" : "text-gray-600"}`}
+                onClick={() => setCalendarView("week")}
+              >Week</button>
             </div>
-            {/* Mobile: single-day navigation */}
-            <div className="flex md:hidden items-center gap-3">
-              <Button variant="outline" size="sm" onClick={prevDay}>←</Button>
-              <span className="text-sm font-medium text-gray-700 min-w-[130px] text-center">
-                {format(allDays[mobileDayIndex], "EEE, MMM d")}
-              </span>
-              <Button variant="outline" size="sm" onClick={nextDay}>→</Button>
-              <Button variant="ghost" size="sm" onClick={goToToday}>Today</Button>
-            </div>
+
+            {/* Day view navigation */}
+            {calendarView === "day" && (
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={prevDay}>←</Button>
+                <span className="text-sm font-medium text-gray-700 min-w-[130px] text-center">
+                  {format(allDays[mobileDayIndex], "EEE, MMM d")}
+                </span>
+                <Button variant="outline" size="sm" onClick={nextDay}>→</Button>
+                <Button variant="ghost" size="sm" onClick={goToToday}>Today</Button>
+              </div>
+            )}
+
+            {/* Week view navigation */}
+            {calendarView === "week" && (
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => setWeekStart(d => subWeeks(d, 1))}>←</Button>
+                <span className="text-sm font-medium text-gray-700 min-w-[160px] text-center">
+                  {format(weekStart, "MMM d")} – {format(weekEnd, "MMM d, yyyy")}
+                </span>
+                <Button variant="outline" size="sm" onClick={() => setWeekStart(d => addWeeks(d, 1))}>→</Button>
+                <Button variant="ghost" size="sm" onClick={() => setWeekStart(startOfWeek(new Date(), { weekStartsOn: 0 }))}>Today</Button>
+              </div>
+            )}
           </div>
 
           {locationRooms.length === 0 ? (
@@ -226,6 +242,7 @@ export function ScheduleApp({ currentUser, locations, rooms, allProfiles }: Prop
               allocations={allocations}
               currentUserId={currentUser.id}
               loading={loading}
+              fitScreen={isMobile && calendarView === "week"}
               onSlotClick={(roomId, date, startTime) => setBookingSlot({ roomId, date, startTime })}
               onAllocationClick={setActionAllocation}
             />

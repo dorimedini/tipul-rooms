@@ -12,6 +12,7 @@ interface Props {
   allocations: AllocationWithDetails[];
   currentUserId: string;
   loading: boolean;
+  fitScreen?: boolean;
   onSlotClick: (roomId: string, date: Date, startTime: string) => void;
   onAllocationClick: (allocation: AllocationWithDetails) => void;
 }
@@ -37,11 +38,13 @@ function userColor(userId: string, allUserIds: string[]): string {
   return COLORS[idx % COLORS.length] ?? COLORS[0];
 }
 
-export function WeeklyCalendar({ days, rooms, allocations, currentUserId, loading, onSlotClick, onAllocationClick }: Props) {
-  // Collect all unique user ids for stable color assignment
+function shortHour(label: string): string {
+  return String(parseInt(label.split(":")[0], 10));
+}
+
+export function WeeklyCalendar({ days, rooms, allocations, currentUserId, loading, fitScreen = false, onSlotClick, onAllocationClick }: Props) {
   const allUserIds = [...new Set(allocations.map(a => a.user_id))];
 
-  // Time labels
   const timeLabels: string[] = [];
   for (let m = DAY_START; m <= DAY_END; m += 60) {
     timeLabels.push(minutesToTime(m));
@@ -66,25 +69,35 @@ export function WeeklyCalendar({ days, rooms, allocations, currentUserId, loadin
     onSlotClick(room.id, day, minutesToTime(snapped));
   }
 
+  const gutterClass = fitScreen ? "w-8 shrink-0" : "w-12 shrink-0";
+  const outerStyle = fitScreen ? {} : { minWidth: rooms.length * days.length * 100 + 50 };
+  const roomStyle = fitScreen ? {} : { minWidth: days.length * 100 };
+
   return (
-    <div className="overflow-x-auto">
+    <div className={fitScreen ? "w-full" : "overflow-x-auto"}>
       {/* Header: day columns per room */}
-      <div className="flex" style={{ minWidth: rooms.length * days.length * 100 + 50 }}>
-        {/* Time gutter */}
-        <div className="w-12 shrink-0" />
+      <div className="flex" style={outerStyle}>
+        <div className={gutterClass} />
         {rooms.map(room => (
-          <div key={room.id} className="flex-1" style={{ minWidth: days.length * 100 }}>
-            <div className="text-xs font-semibold text-gray-500 text-center py-1 border-b bg-white sticky top-0 z-10">
+          <div key={room.id} className="flex-1 min-w-0" style={roomStyle}>
+            <div className={`font-semibold text-gray-500 text-center py-1 border-b bg-white sticky top-0 z-10 truncate px-1 ${fitScreen ? "text-[10px]" : "text-xs"}`}>
               {room.name}
             </div>
-            <div className="grid text-xs text-center sticky top-6 z-10 bg-white border-b"
-              style={{ gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))` }}>
+            <div
+              className="grid text-center sticky top-6 z-10 bg-white border-b"
+              style={{ gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))` }}
+            >
               {days.map(day => (
                 <div
                   key={day.toISOString()}
-                  className={`py-1 border-r ${isSameDay(day, new Date()) ? "bg-blue-50 text-blue-700 font-semibold" : "text-gray-500"}`}
+                  className={`border-r ${isSameDay(day, new Date()) ? "bg-blue-50 text-blue-700 font-semibold" : "text-gray-500"} ${fitScreen ? "py-0.5" : "py-1 text-xs"}`}
                 >
-                  {format(day, "EEE d")}
+                  {fitScreen ? (
+                    <div className="flex flex-col items-center leading-none">
+                      <span className="text-[9px] text-gray-400">{format(day, "EEEEE")}</span>
+                      <span className={`text-[10px] ${isSameDay(day, new Date()) ? "font-bold" : ""}`}>{format(day, "d")}</span>
+                    </div>
+                  ) : format(day, "EEE d")}
                 </div>
               ))}
             </div>
@@ -93,23 +106,31 @@ export function WeeklyCalendar({ days, rooms, allocations, currentUserId, loadin
       </div>
 
       {/* Body */}
-      <div className="flex" style={{ minWidth: rooms.length * days.length * 100 + 50 }}>
+      <div className="flex" style={outerStyle}>
         {/* Time gutter */}
-        <div className="w-12 shrink-0 relative" style={{ height: totalHeight }}>
-          {timeLabels.map(label => {
+        <div className={`${gutterClass} relative`} style={{ height: totalHeight }}>
+          {timeLabels.map((label, i) => {
+            if (fitScreen && i % 2 !== 0) return null;
             const offsetMin = timeToMinutes(label) - DAY_START;
             const top = (offsetMin / 15) * SLOT_HEIGHT;
             return (
-              <div key={label} className="absolute right-1 text-xs text-gray-400 -translate-y-2" style={{ top }}>
-                {label}
+              <div
+                key={label}
+                className={`absolute text-gray-400 -translate-y-2 ${fitScreen ? "right-0.5 text-[9px]" : "right-1 text-xs"}`}
+                style={{ top }}
+              >
+                {fitScreen ? shortHour(label) : label}
               </div>
             );
           })}
         </div>
 
         {rooms.map(room => (
-          <div key={room.id} className="flex-1 grid"
-            style={{ gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))` }}>
+          <div
+            key={room.id}
+            className="flex-1 min-w-0 grid"
+            style={{ gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))` }}
+          >
             {days.map(day => {
               const dayStr = format(day, "yyyy-MM-dd");
               const dayAllocations = allocations.filter(
@@ -122,7 +143,6 @@ export function WeeklyCalendar({ days, rooms, allocations, currentUserId, loadin
                   style={{ height: totalHeight }}
                   onClick={(e) => handleSlotClick(room, day, e)}
                 >
-                  {/* Hour grid lines */}
                   {timeLabels.map(label => {
                     const offsetMin = timeToMinutes(label) - DAY_START;
                     const top = (offsetMin / 15) * SLOT_HEIGHT;
@@ -131,7 +151,6 @@ export function WeeklyCalendar({ days, rooms, allocations, currentUserId, loadin
                     );
                   })}
 
-                  {/* Allocations */}
                   {dayAllocations.map(alloc => {
                     const { top, height } = positionStyle(alloc.start_time, alloc.duration_minutes);
                     const isOwn = alloc.user_id === currentUserId;
@@ -139,19 +158,23 @@ export function WeeklyCalendar({ days, rooms, allocations, currentUserId, loadin
                     return (
                       <div
                         key={alloc.id}
-                        className={`absolute left-0.5 right-0.5 rounded border-l-2 px-1 overflow-hidden cursor-pointer z-10 ${color} ${isOwn ? "ring-1 ring-offset-0 ring-current" : ""}`}
+                        className={`absolute left-0.5 right-0.5 rounded border-l-2 overflow-hidden cursor-pointer z-10 ${color} ${isOwn ? "ring-1 ring-offset-0 ring-current" : ""} ${fitScreen ? "" : "px-1"}`}
                         style={{ top: top + 1, height: height - 2 }}
                         onClick={(e) => { e.stopPropagation(); onAllocationClick(alloc); }}
                         title={[alloc.profiles?.name, alloc.title, `${alloc.start_time.slice(0,5)} (${alloc.duration_minutes}min)`].filter(Boolean).join(" · ")}
                       >
-                        <div className="text-xs font-medium leading-tight truncate">
-                          {alloc.profiles?.name?.split(" ")[0]}
-                          {alloc.title && <span className="font-normal opacity-80"> · {alloc.title}</span>}
-                        </div>
-                        {height > 24 && (
-                          <div className="text-xs opacity-70 leading-tight">
-                            {alloc.start_time.slice(0, 5)}
-                          </div>
+                        {!fitScreen && (
+                          <>
+                            <div className="text-xs font-medium leading-tight truncate">
+                              {alloc.profiles?.name?.split(" ")[0]}
+                              {alloc.title && <span className="font-normal opacity-80"> · {alloc.title}</span>}
+                            </div>
+                            {height > 24 && (
+                              <div className="text-xs opacity-70 leading-tight">
+                                {alloc.start_time.slice(0, 5)}
+                              </div>
+                            )}
+                          </>
                         )}
                       </div>
                     );
