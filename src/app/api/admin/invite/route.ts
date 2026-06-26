@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { emailInvite } from "@/lib/email";
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
@@ -25,6 +26,9 @@ export async function POST(req: NextRequest) {
     }
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  const { data: inviter } = await supabase.from("profiles").select("name").eq("id", user.id).single();
+  await emailInvite({ toEmail: normalised, invitedByName: inviter?.name ?? "An admin" });
 
   return NextResponse.json({ ok: true });
 }

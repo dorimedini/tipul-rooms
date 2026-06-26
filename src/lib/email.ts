@@ -48,6 +48,17 @@ async function send(to: string | string[], subject: string, body: string) {
   }
 }
 
+export async function emailInvite(opts: { toEmail: string; invitedByName: string }) {
+  await send(
+    opts.toEmail,
+    "You've been invited to Tipul Rooms",
+    `<p>Hi,</p>
+<p><strong>${opts.invitedByName}</strong> has invited you to Tipul Rooms.</p>
+<p>Sign in with your Google account (<strong>${opts.toEmail}</strong>) to get started.</p>
+<p><a href="${APP_URL()}" style="background:#2563eb;color:#fff;padding:10px 20px;text-decoration:none;border-radius:6px;display:inline-block">Sign in to Tipul Rooms</a></p>`
+  );
+}
+
 export async function emailSwapRequest(opts: {
   toEmail: string;
   toName: string;

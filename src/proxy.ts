@@ -48,6 +48,24 @@ export async function proxy(request: NextRequest) {
       .single();
 
     if (!profile) {
+      // User authenticated but no profile — check if they've since been invited
+      const { data: invite } = await supabase
+        .from("invited_emails")
+        .select("is_admin")
+        .eq("email", (user.email ?? "").toLowerCase())
+        .single();
+
+      if (invite) {
+        // Create their profile now and let them through
+        await supabase.from("profiles").insert({
+          id: user.id,
+          name: (user.user_metadata?.full_name as string | undefined) ?? user.email ?? "Unknown",
+          email: user.email ?? "",
+          is_admin: (invite as any).is_admin ?? false,
+        });
+        return supabaseResponse;
+      }
+
       const url = request.nextUrl.clone();
       url.pathname = "/unauthorized";
       return NextResponse.redirect(url);
