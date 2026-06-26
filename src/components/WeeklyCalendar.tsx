@@ -1,13 +1,13 @@
 "use client";
 
-import { addDays, format, isSameDay } from "date-fns";
+import { format, isSameDay } from "date-fns";
 import { AllocationWithDetails } from "@/lib/supabase/types";
 import { timeToMinutes, minutesToTime, START_TIMES } from "@/lib/allocations";
 
 interface Room { id: string; name: string; location_id: string }
 
 interface Props {
-  weekStart: Date;
+  days: Date[];
   rooms: Room[];
   allocations: AllocationWithDetails[];
   currentUserId: string;
@@ -37,9 +37,7 @@ function userColor(userId: string, allUserIds: string[]): string {
   return COLORS[idx % COLORS.length] ?? COLORS[0];
 }
 
-export function WeeklyCalendar({ weekStart, rooms, allocations, currentUserId, loading, onSlotClick, onAllocationClick }: Props) {
-  const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
-
+export function WeeklyCalendar({ days, rooms, allocations, currentUserId, loading, onSlotClick, onAllocationClick }: Props) {
   // Collect all unique user ids for stable color assignment
   const allUserIds = [...new Set(allocations.map(a => a.user_id))];
 
@@ -71,15 +69,16 @@ export function WeeklyCalendar({ weekStart, rooms, allocations, currentUserId, l
   return (
     <div className="overflow-x-auto">
       {/* Header: day columns per room */}
-      <div className="flex" style={{ minWidth: rooms.length * 7 * 100 + 50 }}>
+      <div className="flex" style={{ minWidth: rooms.length * days.length * 100 + 50 }}>
         {/* Time gutter */}
         <div className="w-12 shrink-0" />
         {rooms.map(room => (
-          <div key={room.id} className="flex-1" style={{ minWidth: 7 * 100 }}>
+          <div key={room.id} className="flex-1" style={{ minWidth: days.length * 100 }}>
             <div className="text-xs font-semibold text-gray-500 text-center py-1 border-b bg-white sticky top-0 z-10">
               {room.name}
             </div>
-            <div className="grid grid-cols-7 text-xs text-center sticky top-6 z-10 bg-white border-b">
+            <div className="grid text-xs text-center sticky top-6 z-10 bg-white border-b"
+              style={{ gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))` }}>
               {days.map(day => (
                 <div
                   key={day.toISOString()}
@@ -94,7 +93,7 @@ export function WeeklyCalendar({ weekStart, rooms, allocations, currentUserId, l
       </div>
 
       {/* Body */}
-      <div className="flex" style={{ minWidth: rooms.length * 7 * 100 + 50 }}>
+      <div className="flex" style={{ minWidth: rooms.length * days.length * 100 + 50 }}>
         {/* Time gutter */}
         <div className="w-12 shrink-0 relative" style={{ height: totalHeight }}>
           {timeLabels.map(label => {
@@ -109,7 +108,8 @@ export function WeeklyCalendar({ weekStart, rooms, allocations, currentUserId, l
         </div>
 
         {rooms.map(room => (
-          <div key={room.id} className="flex-1 grid grid-cols-7" style={{ minWidth: 7 * 100 }}>
+          <div key={room.id} className="flex-1 grid"
+            style={{ gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))` }}>
             {days.map(day => {
               const dayStr = format(day, "yyyy-MM-dd");
               const dayAllocations = allocations.filter(

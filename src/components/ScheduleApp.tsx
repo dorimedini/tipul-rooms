@@ -11,7 +11,7 @@ import { SwapRequestsPanel } from "./SwapRequestsPanel";
 import { AdminPanel } from "./AdminPanel";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
-import { addWeeks, subWeeks, startOfWeek, endOfWeek, format } from "date-fns";
+import { addWeeks, subWeeks, startOfWeek, endOfWeek, format, addDays } from "date-fns";
 
 type RoomWithLocation = Room & { locations: Location };
 
@@ -33,11 +33,22 @@ export function ScheduleApp({ currentUser, locations, rooms, allProfiles }: Prop
   const [swapRequests, setSwapRequests] = useState<SwapRequestWithDetails[]>([]);
   const [loading, setLoading] = useState(false);
   const [sidePanel, setSidePanel] = useState<SidePanel>(null);
+  const [isMobile, setIsMobile] = useState(false);
+  const [mobileDayIndex, setMobileDayIndex] = useState(() => new Date().getDay());
 
   const [bookingSlot, setBookingSlot] = useState<{ roomId: string; date: Date; startTime: string } | null>(null);
   const [actionAllocation, setActionAllocation] = useState<AllocationWithDetails | null>(null);
 
   const weekEnd = endOfWeek(weekStart, { weekStartsOn: 0 });
+  const allDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+  const displayDays = isMobile ? [allDays[mobileDayIndex]] : allDays;
+
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 768);
+    handler();
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
 
   const fetchAllocations = useCallback(async () => {
     setLoading(true);
@@ -85,18 +96,87 @@ export function ScheduleApp({ currentUser, locations, rooms, allProfiles }: Prop
     window.location.href = "/login";
   }
 
+  function prevDay() {
+    if (mobileDayIndex > 0) {
+      setMobileDayIndex(i => i - 1);
+    } else {
+      setWeekStart(d => subWeeks(d, 1));
+      setMobileDayIndex(6);
+    }
+  }
+
+  function nextDay() {
+    if (mobileDayIndex < 6) {
+      setMobileDayIndex(i => i + 1);
+    } else {
+      setWeekStart(d => addWeeks(d, 1));
+      setMobileDayIndex(0);
+    }
+  }
+
+  function goToToday() {
+    setWeekStart(startOfWeek(new Date(), { weekStartsOn: 0 }));
+    setMobileDayIndex(new Date().getDay());
+  }
+
   return (
     <div className="flex flex-col h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-white border-b px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <h1 className="text-lg font-semibold text-gray-900">Tipul Rooms</h1>
-          <nav className="flex gap-1">
+      <header className="bg-white border-b px-4">
+        <div className="flex items-center justify-between py-2 md:py-3">
+          <div className="flex items-center gap-2 md:gap-4">
+            <h1 className="text-lg font-semibold text-gray-900">Tipul Rooms</h1>
+            {/* Desktop: location tabs inline with title */}
+            <nav className="hidden md:flex gap-1">
+              {locations.map(loc => (
+                <button
+                  key={loc.id}
+                  onClick={() => setSelectedLocationId(loc.id)}
+                  className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                    selectedLocationId === loc.id
+                      ? "bg-blue-100 text-blue-700 font-medium"
+                      : "text-gray-600 hover:bg-gray-100"
+                  }`}
+                >
+                  {loc.name}
+                </button>
+              ))}
+            </nav>
+          </div>
+          <div className="flex items-center gap-2 md:gap-3">
+            <Button
+              variant={sidePanel === "swaps" ? "default" : "outline"}
+              size="sm"
+              onClick={() => togglePanel("swaps")}
+            >
+              Swaps
+              {pendingSwapsCount > 0 && (
+                <Badge className="ml-1.5 bg-orange-500 text-white text-xs px-1.5 py-0">
+                  {pendingSwapsCount}
+                </Badge>
+              )}
+            </Button>
+            {currentUser.is_admin && (
+              <Button
+                variant={sidePanel === "admin" ? "default" : "outline"}
+                size="sm"
+                onClick={() => togglePanel("admin")}
+              >
+                Admin
+              </Button>
+            )}
+            <span className="hidden md:inline text-sm text-gray-500">{currentUser.name}</span>
+            <Button variant="ghost" size="sm" onClick={handleSignOut}>Sign out</Button>
+          </div>
+        </div>
+        {/* Mobile: location tabs in a second row */}
+        {locations.length > 1 && (
+          <nav className="md:hidden flex gap-1 overflow-x-auto pb-2">
             {locations.map(loc => (
               <button
                 key={loc.id}
                 onClick={() => setSelectedLocationId(loc.id)}
-                className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                className={`px-3 py-1.5 text-sm rounded-md transition-colors whitespace-nowrap ${
                   selectedLocationId === loc.id
                     ? "bg-blue-100 text-blue-700 font-medium"
                     : "text-gray-600 hover:bg-gray-100"
@@ -106,45 +186,33 @@ export function ScheduleApp({ currentUser, locations, rooms, allProfiles }: Prop
               </button>
             ))}
           </nav>
-        </div>
-        <div className="flex items-center gap-3">
-          <Button
-            variant={sidePanel === "swaps" ? "default" : "outline"}
-            size="sm"
-            onClick={() => togglePanel("swaps")}
-          >
-            Swaps
-            {pendingSwapsCount > 0 && (
-              <Badge className="ml-1.5 bg-orange-500 text-white text-xs px-1.5 py-0">
-                {pendingSwapsCount}
-              </Badge>
-            )}
-          </Button>
-          {currentUser.is_admin && (
-            <Button
-              variant={sidePanel === "admin" ? "default" : "outline"}
-              size="sm"
-              onClick={() => togglePanel("admin")}
-            >
-              Admin
-            </Button>
-          )}
-          <span className="text-sm text-gray-500">{currentUser.name}</span>
-          <Button variant="ghost" size="sm" onClick={handleSignOut}>Sign out</Button>
-        </div>
+        )}
       </header>
 
       <div className="flex flex-1 overflow-hidden">
         <main className="flex-1 overflow-auto p-4">
+          {/* Navigation bar */}
           <div className="flex items-center gap-3 mb-4">
-            <Button variant="outline" size="sm" onClick={() => setWeekStart(d => subWeeks(d, 1))}>←</Button>
-            <span className="text-sm font-medium text-gray-700 min-w-[180px] text-center">
-              {format(weekStart, "MMM d")} – {format(weekEnd, "MMM d, yyyy")}
-            </span>
-            <Button variant="outline" size="sm" onClick={() => setWeekStart(d => addWeeks(d, 1))}>→</Button>
-            <Button variant="ghost" size="sm" onClick={() => setWeekStart(startOfWeek(new Date(), { weekStartsOn: 0 }))}>
-              Today
-            </Button>
+            {/* Desktop: week navigation */}
+            <div className="hidden md:flex items-center gap-3">
+              <Button variant="outline" size="sm" onClick={() => setWeekStart(d => subWeeks(d, 1))}>←</Button>
+              <span className="text-sm font-medium text-gray-700 min-w-[180px] text-center">
+                {format(weekStart, "MMM d")} – {format(weekEnd, "MMM d, yyyy")}
+              </span>
+              <Button variant="outline" size="sm" onClick={() => setWeekStart(d => addWeeks(d, 1))}>→</Button>
+              <Button variant="ghost" size="sm" onClick={() => setWeekStart(startOfWeek(new Date(), { weekStartsOn: 0 }))}>
+                Today
+              </Button>
+            </div>
+            {/* Mobile: single-day navigation */}
+            <div className="flex md:hidden items-center gap-3">
+              <Button variant="outline" size="sm" onClick={prevDay}>←</Button>
+              <span className="text-sm font-medium text-gray-700 min-w-[130px] text-center">
+                {format(allDays[mobileDayIndex], "EEE, MMM d")}
+              </span>
+              <Button variant="outline" size="sm" onClick={nextDay}>→</Button>
+              <Button variant="ghost" size="sm" onClick={goToToday}>Today</Button>
+            </div>
           </div>
 
           {locationRooms.length === 0 ? (
@@ -153,7 +221,7 @@ export function ScheduleApp({ currentUser, locations, rooms, allProfiles }: Prop
             </div>
           ) : (
             <WeeklyCalendar
-              weekStart={weekStart}
+              days={displayDays}
               rooms={locationRooms}
               allocations={allocations}
               currentUserId={currentUser.id}
@@ -165,7 +233,7 @@ export function ScheduleApp({ currentUser, locations, rooms, allProfiles }: Prop
         </main>
 
         {sidePanel === "swaps" && (
-          <aside className="w-80 border-l bg-white overflow-auto shrink-0">
+          <aside className="fixed inset-0 z-50 bg-white overflow-auto md:relative md:inset-auto md:z-auto md:w-80 md:border-l md:shrink-0">
             <SwapRequestsPanel
               swapRequests={swapRequests}
               currentUserId={currentUser.id}
@@ -176,7 +244,7 @@ export function ScheduleApp({ currentUser, locations, rooms, allProfiles }: Prop
         )}
 
         {sidePanel === "admin" && currentUser.is_admin && (
-          <aside className="w-80 border-l bg-white overflow-auto shrink-0">
+          <aside className="fixed inset-0 z-50 bg-white overflow-auto md:relative md:inset-auto md:z-auto md:w-80 md:border-l md:shrink-0">
             <AdminPanel
               currentUser={currentUser}
               onClose={() => setSidePanel(null)}
