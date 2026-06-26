@@ -128,7 +128,11 @@ export function AllocationActionDialog({
         </DialogHeader>
 
         <div className="text-sm text-gray-600 space-y-1 pb-2 border-b">
-          <div><span className="font-medium">{allocation.profiles?.name}</span></div>
+          <div>
+            <span className="font-medium">{allocation.profiles?.name}</span>
+            <span className="text-gray-400 ml-2">{allocation.profiles?.email}</span>
+          </div>
+          {allocation.title && <div className="text-gray-500 italic">{allocation.title}</div>}
           <div>{location?.name} · {room?.name}</div>
           <div>{minutesToTimeLabel(allocation.duration_minutes)}</div>
           {hasSeries && <Badge variant="secondary" className="text-xs">Recurring</Badge>}

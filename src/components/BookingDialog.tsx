@@ -27,6 +27,7 @@ export function BookingDialog({ slot, rooms, currentUser, locations, onClose, on
   const [startTime, setStartTime] = useState(slot.startTime);
   const [duration, setDuration] = useState(60);
   const [recurring, setRecurring] = useState(false);
+  const [title, setTitle] = useState("");
   const [seriesEnd, setSeriesEnd] = useState(format(addMonths(slot.date, 10), "yyyy-MM-dd"));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,6 +46,7 @@ export function BookingDialog({ slot, rooms, currentUser, locations, onClose, on
           date: format(slot.date, "yyyy-MM-dd"),
           startTime,
           durationMinutes: duration,
+          title: title.trim() || null,
           recurring,
           seriesEnd,
         }),
@@ -124,6 +126,17 @@ export function BookingDialog({ slot, rooms, currentUser, locations, onClose, on
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div className="grid gap-2">
+            <Label>Title <span className="text-gray-400 font-normal">(optional)</span></Label>
+            <input
+              type="text"
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              placeholder="e.g. Supervision, Group session…"
+              className="border rounded-md px-3 py-2 text-sm"
+            />
           </div>
 
           <div className="flex items-center gap-3">

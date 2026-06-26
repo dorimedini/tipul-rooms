@@ -142,10 +142,11 @@ export function WeeklyCalendar({ weekStart, rooms, allocations, currentUserId, l
                         className={`absolute left-0.5 right-0.5 rounded border-l-2 px-1 overflow-hidden cursor-pointer z-10 ${color} ${isOwn ? "ring-1 ring-offset-0 ring-current" : ""}`}
                         style={{ top: top + 1, height: height - 2 }}
                         onClick={(e) => { e.stopPropagation(); onAllocationClick(alloc); }}
-                        title={`${alloc.profiles?.name} · ${alloc.start_time} (${alloc.duration_minutes}min)`}
+                        title={[alloc.profiles?.name, alloc.title, `${alloc.start_time.slice(0,5)} (${alloc.duration_minutes}min)`].filter(Boolean).join(" · ")}
                       >
                         <div className="text-xs font-medium leading-tight truncate">
                           {alloc.profiles?.name?.split(" ")[0]}
+                          {alloc.title && <span className="font-normal opacity-80"> · {alloc.title}</span>}
                         </div>
                         {height > 24 && (
                           <div className="text-xs opacity-70 leading-tight">

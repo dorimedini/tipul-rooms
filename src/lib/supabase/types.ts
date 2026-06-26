@@ -54,17 +54,17 @@ export interface Database {
       allocations: {
         Row: {
           id: string; series_id: string | null; user_id: string; room_id: string;
-          date: string; start_time: string; duration_minutes: number;
+          date: string; start_time: string; duration_minutes: number; title: string | null;
           status: "active" | "cancelled"; created_at: string;
         };
         Insert: {
           id?: string; series_id?: string | null; user_id: string; room_id: string;
-          date: string; start_time: string; duration_minutes: number;
+          date: string; start_time: string; duration_minutes: number; title?: string | null;
           status?: "active" | "cancelled"; created_at?: string;
         };
         Update: {
           id?: string; series_id?: string | null; user_id?: string; room_id?: string;
-          date?: string; start_time?: string; duration_minutes?: number;
+          date?: string; start_time?: string; duration_minutes?: number; title?: string | null;
           status?: "active" | "cancelled"; created_at?: string;
         };
         Relationships: [];

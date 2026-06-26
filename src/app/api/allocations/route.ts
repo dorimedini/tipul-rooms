@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
-  const { roomId, date, startTime, durationMinutes, recurring, seriesEnd } = body;
+  const { roomId, date, startTime, durationMinutes, title, recurring, seriesEnd } = body;
 
   if (recurring) {
     const start = parseISO(date);
@@ -62,6 +62,7 @@ export async function POST(req: NextRequest) {
         date: formatDateForDB(d),
         start_time: startTime,
         duration_minutes: durationMinutes,
+        title: title ?? null,
       }))
     );
 
@@ -86,7 +87,7 @@ export async function POST(req: NextRequest) {
 
     const { data, error } = await supabase
       .from("allocations")
-      .insert({ user_id: user.id, room_id: roomId, date, start_time: startTime, duration_minutes: durationMinutes })
+      .insert({ user_id: user.id, room_id: roomId, date, start_time: startTime, duration_minutes: durationMinutes, title: title ?? null })
       .select()
       .single();
 
