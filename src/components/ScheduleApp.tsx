@@ -29,6 +29,9 @@ export function ScheduleApp({ currentUser, locations, rooms, allProfiles }: Prop
   const router = useRouter();
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 0 }));
   const [selectedLocationId, setSelectedLocationId] = useState<string>(locations[0]?.id ?? "");
+  const [selectedRoomId, setSelectedRoomId] = useState<string>(
+    () => rooms.find(r => r.location_id === locations[0]?.id)?.id ?? ""
+  );
   const [allocations, setAllocations] = useState<AllocationWithDetails[]>([]);
   const [swapRequests, setSwapRequests] = useState<SwapRequestWithDetails[]>([]);
   const [loading, setLoading] = useState(false);
@@ -87,6 +90,12 @@ export function ScheduleApp({ currentUser, locations, rooms, allProfiles }: Prop
   ).length;
 
   const locationRooms = rooms.filter(r => r.location_id === selectedLocationId);
+  const selectedRoom = locationRooms.find(r => r.id === selectedRoomId) ?? locationRooms[0] ?? null;
+
+  // When location changes, select its first room
+  useEffect(() => {
+    setSelectedRoomId(locationRooms[0]?.id ?? "");
+  }, [selectedLocationId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function togglePanel(panel: SidePanel) {
     setSidePanel(prev => prev === panel ? null : panel);
@@ -188,6 +197,24 @@ export function ScheduleApp({ currentUser, locations, rooms, allProfiles }: Prop
             ))}
           </nav>
         )}
+        {/* Room tabs */}
+        {locationRooms.length > 0 && (
+          <nav className="flex gap-1 overflow-x-auto pb-2 border-t pt-2">
+            {locationRooms.map(room => (
+              <button
+                key={room.id}
+                onClick={() => setSelectedRoomId(room.id)}
+                className={`px-3 py-1.5 text-sm rounded-md transition-colors whitespace-nowrap ${
+                  room.id === (selectedRoom?.id)
+                    ? "bg-gray-900 text-white font-medium"
+                    : "text-gray-600 hover:bg-gray-100"
+                }`}
+              >
+                {room.name}
+              </button>
+            ))}
+          </nav>
+        )}
       </header>
 
       <div className="flex flex-1 overflow-hidden">
@@ -231,14 +258,14 @@ export function ScheduleApp({ currentUser, locations, rooms, allProfiles }: Prop
             )}
           </div>
 
-          {locationRooms.length === 0 ? (
+          {!selectedRoom ? (
             <div className="text-center py-20 text-gray-400">
               {locations.length === 0 ? "No locations configured yet." : "No rooms in this location."}
             </div>
           ) : (
             <WeeklyCalendar
               days={displayDays}
-              rooms={locationRooms}
+              rooms={[selectedRoom]}
               allocations={allocations}
               currentUserId={currentUser.id}
               loading={loading}
