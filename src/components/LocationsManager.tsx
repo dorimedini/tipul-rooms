@@ -208,18 +208,20 @@ export function LocationsManager({ open, onClose, onChanged }: Props) {
             </div>
           ))}
 
-          {/* Add location */}
-          <form onSubmit={addLocation} className="flex gap-2 pt-2">
-            <input
-              type="text"
-              value={newLocName}
-              onChange={e => setNewLocName(e.target.value)}
-              placeholder="New location name…"
-              className="flex-1 border rounded-md px-3 py-2 text-sm"
-              required
-            />
-            <Button type="submit" size="sm">Add location</Button>
-          </form>
+          {/* Add location — hidden while room form is open */}
+          {!showRoomForm && (
+            <form onSubmit={addLocation} className="flex gap-2 pt-2">
+              <input
+                type="text"
+                value={newLocName}
+                onChange={e => setNewLocName(e.target.value)}
+                placeholder="New location name…"
+                className="flex-1 border rounded-md px-3 py-2 text-sm"
+                required
+              />
+              <Button type="submit" size="sm">Add location</Button>
+            </form>
+          )}
 
           {/* Room form (add or edit hours) */}
           {showRoomForm && (
