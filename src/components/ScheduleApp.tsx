@@ -40,6 +40,9 @@ export function ScheduleApp({ currentUser, locations, rooms, allProfiles }: Prop
   const [mobileDayIndex, setMobileDayIndex] = useState(() => new Date().getDay());
   const [calendarView, setCalendarView] = useState<"day" | "week">("week");
 
+  const [navDir, setNavDir] = useState<"forward" | "backward" | null>(null);
+  const [calKey, setCalKey] = useState(0);
+
   const [bookingSlot, setBookingSlot] = useState<{ roomId: string; date: Date; startTime: string; durationMinutes?: number } | null>(null);
   const [actionAllocation, setActionAllocation] = useState<AllocationWithDetails | null>(null);
 
@@ -97,6 +100,12 @@ export function ScheduleApp({ currentUser, locations, rooms, allProfiles }: Prop
     setSelectedRoomId(locationRooms[0]?.id ?? "");
   }, [selectedLocationId]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  function navigate(dir: "forward" | "backward", update: () => void) {
+    setNavDir(dir);
+    setCalKey(k => k + 1);
+    update();
+  }
+
   function togglePanel(panel: SidePanel) {
     setSidePanel(prev => prev === panel ? null : panel);
   }
@@ -108,24 +117,37 @@ export function ScheduleApp({ currentUser, locations, rooms, allProfiles }: Prop
 
   // Use functional updates so these are safe to call from effects without stale closures
   function prevDay() {
-    setMobileDayIndex(i => {
+    navigate("backward", () => setMobileDayIndex(i => {
       if (i > 0) return i - 1;
       setWeekStart(d => subWeeks(d, 1));
       return 6;
-    });
+    }));
   }
 
   function nextDay() {
-    setMobileDayIndex(i => {
+    navigate("forward", () => setMobileDayIndex(i => {
       if (i < 6) return i + 1;
       setWeekStart(d => addWeeks(d, 1));
       return 0;
-    });
+    }));
+  }
+
+  function prevWeek() {
+    navigate("backward", () => setWeekStart(d => subWeeks(d, 1)));
+  }
+
+  function nextWeek() {
+    navigate("forward", () => setWeekStart(d => addWeeks(d, 1)));
   }
 
   function goToToday() {
-    setWeekStart(startOfWeek(new Date(), { weekStartsOn: 0 }));
-    setMobileDayIndex(new Date().getDay());
+    const today = new Date();
+    const todayWeek = startOfWeek(today, { weekStartsOn: 0 });
+    const dir: "forward" | "backward" = todayWeek >= weekStart ? "forward" : "backward";
+    navigate(dir, () => {
+      setWeekStart(todayWeek);
+      setMobileDayIndex(today.getDay());
+    });
   }
 
   // Swipe left/right to navigate
@@ -136,6 +158,10 @@ export function ScheduleApp({ currentUser, locations, rooms, allProfiles }: Prop
   prevDayRef.current = prevDay;
   const nextDayRef = useRef(nextDay);
   nextDayRef.current = nextDay;
+  const prevWeekRef = useRef(prevWeek);
+  prevWeekRef.current = prevWeek;
+  const nextWeekRef = useRef(nextWeek);
+  nextWeekRef.current = nextWeek;
 
   useEffect(() => {
     const el = mainRef.current;
@@ -155,9 +181,7 @@ export function ScheduleApp({ currentUser, locations, rooms, allProfiles }: Prop
       if (calendarViewRef.current === "day") {
         dx < 0 ? nextDayRef.current() : prevDayRef.current();
       } else {
-        dx < 0
-          ? setWeekStart(d => addWeeks(d, 1))
-          : setWeekStart(d => subWeeks(d, 1));
+        dx < 0 ? nextWeekRef.current() : prevWeekRef.current();
       }
     }
     el.addEventListener("touchstart", onTouchStart, { passive: true });
@@ -294,12 +318,12 @@ export function ScheduleApp({ currentUser, locations, rooms, allProfiles }: Prop
             {/* Week view navigation */}
             {calendarView === "week" && (
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={() => setWeekStart(d => subWeeks(d, 1))}>←</Button>
+                <Button variant="outline" size="sm" onClick={prevWeek}>←</Button>
                 <span className="text-sm font-medium text-foreground min-w-[160px] text-center">
                   {format(weekStart, "MMM d")} – {format(weekEnd, "MMM d, yyyy")}
                 </span>
-                <Button variant="outline" size="sm" onClick={() => setWeekStart(d => addWeeks(d, 1))}>→</Button>
-                <Button variant="ghost" size="sm" onClick={() => setWeekStart(startOfWeek(new Date(), { weekStartsOn: 0 }))}>Today</Button>
+                <Button variant="outline" size="sm" onClick={nextWeek}>→</Button>
+                <Button variant="ghost" size="sm" onClick={goToToday}>Today</Button>
               </div>
             )}
           </div>
@@ -309,16 +333,21 @@ export function ScheduleApp({ currentUser, locations, rooms, allProfiles }: Prop
               {locations.length === 0 ? "No locations configured yet." : "No rooms in this location."}
             </div>
           ) : (
-            <WeeklyCalendar
-              days={displayDays}
-              rooms={[selectedRoom]}
-              allocations={allocations}
-              currentUserId={currentUser.id}
-              loading={loading}
-              fitScreen={isMobile && calendarView === "week"}
-              onSlotClick={(roomId, date, startTime, durationMinutes) => setBookingSlot({ roomId, date, startTime, durationMinutes })}
-              onAllocationClick={setActionAllocation}
-            />
+            <div
+              key={calKey}
+              className={navDir === "forward" ? "cal-enter-forward" : navDir === "backward" ? "cal-enter-backward" : ""}
+            >
+              <WeeklyCalendar
+                days={displayDays}
+                rooms={[selectedRoom]}
+                allocations={allocations}
+                currentUserId={currentUser.id}
+                loading={loading}
+                fitScreen={isMobile && calendarView === "week"}
+                onSlotClick={(roomId, date, startTime, durationMinutes) => setBookingSlot({ roomId, date, startTime, durationMinutes })}
+                onAllocationClick={setActionAllocation}
+              />
+            </div>
           )}
         </main>
 
