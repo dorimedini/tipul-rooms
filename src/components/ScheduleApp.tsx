@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Location, Room, Profile, AllocationWithDetails, SwapRequestWithDetails } from "@/lib/supabase/types";
@@ -106,28 +106,67 @@ export function ScheduleApp({ currentUser, locations, rooms, allProfiles }: Prop
     window.location.href = "/login";
   }
 
+  // Use functional updates so these are safe to call from effects without stale closures
   function prevDay() {
-    if (mobileDayIndex > 0) {
-      setMobileDayIndex(i => i - 1);
-    } else {
+    setMobileDayIndex(i => {
+      if (i > 0) return i - 1;
       setWeekStart(d => subWeeks(d, 1));
-      setMobileDayIndex(6);
-    }
+      return 6;
+    });
   }
 
   function nextDay() {
-    if (mobileDayIndex < 6) {
-      setMobileDayIndex(i => i + 1);
-    } else {
+    setMobileDayIndex(i => {
+      if (i < 6) return i + 1;
       setWeekStart(d => addWeeks(d, 1));
-      setMobileDayIndex(0);
-    }
+      return 0;
+    });
   }
 
   function goToToday() {
     setWeekStart(startOfWeek(new Date(), { weekStartsOn: 0 }));
     setMobileDayIndex(new Date().getDay());
   }
+
+  // Swipe left/right to navigate
+  const mainRef = useRef<HTMLElement>(null);
+  const calendarViewRef = useRef(calendarView);
+  calendarViewRef.current = calendarView;
+  const prevDayRef = useRef(prevDay);
+  prevDayRef.current = prevDay;
+  const nextDayRef = useRef(nextDay);
+  nextDayRef.current = nextDay;
+
+  useEffect(() => {
+    const el = mainRef.current;
+    if (!el) return;
+    let startX = 0, startY = 0;
+    function onTouchStart(e: TouchEvent) {
+      if (e.touches.length !== 1) return;
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+    }
+    function onTouchEnd(e: TouchEvent) {
+      const t = e.changedTouches[0];
+      const dx = t.clientX - startX;
+      const adx = Math.abs(dx);
+      const ady = Math.abs(t.clientY - startY);
+      if (adx < 40 || adx < ady * 1.5) return; // not a clear horizontal swipe
+      if (calendarViewRef.current === "day") {
+        dx < 0 ? nextDayRef.current() : prevDayRef.current();
+      } else {
+        dx < 0
+          ? setWeekStart(d => addWeeks(d, 1))
+          : setWeekStart(d => subWeeks(d, 1));
+      }
+    }
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
+    el.addEventListener("touchend", onTouchEnd, { passive: true });
+    return () => {
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchend", onTouchEnd);
+    };
+  }, []);
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
@@ -218,7 +257,7 @@ export function ScheduleApp({ currentUser, locations, rooms, allProfiles }: Prop
       </header>
 
       <div className="flex flex-1 overflow-hidden">
-        <main className="flex-1 overflow-auto p-4">
+        <main ref={mainRef} className="flex-1 overflow-auto p-4">
           {/* Navigation bar */}
           <div className="flex items-center gap-2 mb-4 flex-wrap">
             {/* Day/Week toggle */}

@@ -88,6 +88,7 @@ export function WeeklyCalendar({
   onSlotClickRef.current = onSlotClick;
   const didDrag = useRef(false);
   const pointerDownY = useRef(0);
+  const pointerDownX = useRef(0);
 
   // Cursor / text-selection during drag
   useEffect(() => {
@@ -165,7 +166,16 @@ export function WeeklyCalendar({
       // Single-finger drag
       if (e.touches.length !== 1 || !dragRef.current) return;
       const y = e.touches[0].clientY;
-      if (!didDrag.current && Math.abs(y - pointerDownY.current) > DRAG_THRESHOLD) {
+      const x = e.touches[0].clientX;
+      const dy = Math.abs(y - pointerDownY.current);
+      const dx = Math.abs(x - pointerDownX.current);
+      // Horizontal swipe → cancel drag so ScheduleApp can handle navigation
+      if (dx > DRAG_THRESHOLD && dx > dy) {
+        setDrag(null);
+        didDrag.current = false;
+        return;
+      }
+      if (!didDrag.current && dy > DRAG_THRESHOLD) {
         didDrag.current = true;
       }
       if (!didDrag.current) return;
@@ -195,11 +205,12 @@ export function WeeklyCalendar({
     };
   }, []);
 
-  function beginDrag(room: Room, day: Date, clientY: number, cellTop: number) {
+  function beginDrag(room: Room, day: Date, clientY: number, clientX: number, cellTop: number) {
     const sh = slotHeightRef.current;
     const y = clientY - cellTop;
     const startMin = Math.max(DAY_START, Math.min(DAY_END - 15, DAY_START + Math.floor(y / sh) * 15));
     pointerDownY.current = clientY;
+    pointerDownX.current = clientX;
     didDrag.current = false;
     setDrag({ roomId: room.id, day, startMin, endMin: Math.min(DAY_END, startMin + 60), cellTop });
   }
@@ -298,11 +309,12 @@ export function WeeklyCalendar({
                   onMouseDown={e => {
                     if (e.button !== 0) return;
                     e.preventDefault();
-                    beginDrag(room, day, e.clientY, e.currentTarget.getBoundingClientRect().top);
+                    beginDrag(room, day, e.clientY, e.clientX, e.currentTarget.getBoundingClientRect().top);
                   }}
                   onTouchStart={e => {
                     if (e.touches.length === 1) {
-                      beginDrag(room, day, e.touches[0].clientY, e.currentTarget.getBoundingClientRect().top);
+                      const t = e.touches[0];
+                      beginDrag(room, day, t.clientY, t.clientX, e.currentTarget.getBoundingClientRect().top);
                     }
                   }}
                 >
