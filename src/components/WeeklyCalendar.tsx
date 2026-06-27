@@ -22,6 +22,8 @@ interface Props {
   currentUserId: string;
   loading: boolean;
   fitScreen?: boolean;
+  animKey?: number;
+  animClass?: string;
   onSlotClick: (roomId: string, date: Date, startTime: string, durationMinutes?: number) => void;
   onAllocationClick: (allocation: AllocationWithDetails) => void;
 }
@@ -62,7 +64,8 @@ function pinchDist(touches: TouchList): number {
 
 export function WeeklyCalendar({
   days, rooms, allocations, currentUserId, loading,
-  fitScreen = false, onSlotClick, onAllocationClick,
+  fitScreen = false, animKey, animClass = "",
+  onSlotClick, onAllocationClick,
 }: Props) {
   const allUserIds = [...new Set(allocations.map(a => a.user_id))];
 
@@ -227,44 +230,48 @@ export function WeeklyCalendar({
   const labelInterval = fitScreen || slotHeight <= 10 ? 2 : 1;
 
   const gutterClass = fitScreen ? "w-8 shrink-0" : "w-12 shrink-0";
-  const outerStyle = fitScreen ? {} : { minWidth: rooms.length * days.length * 100 + 50 };
+  const roomsStyle = fitScreen ? {} : { minWidth: rooms.length * days.length * 100 };
   const roomStyle = fitScreen ? {} : { minWidth: days.length * 100 };
 
   return (
-    <div className={`${fitScreen ? "w-full" : "overflow-x-auto"} border border-border`}>
+    <div className={`${fitScreen ? "w-full" : "overflow-x-auto"} border border-border bg-background`}>
       {/* Header */}
-      <div className="flex" style={outerStyle}>
+      <div className="flex">
+        {/* Time gutter — static, never animated */}
         <div className={gutterClass} />
-        {rooms.map(room => (
-          <div key={room.id} className="flex-1 min-w-0 border-l border-border" style={roomStyle}>
-            <div className={`font-semibold text-muted-foreground text-center py-1 border-b bg-background sticky top-0 z-10 truncate px-1 ${fitScreen ? "text-[10px]" : "text-xs"}`}>
-              {room.name}
+        {/* Day columns — animated */}
+        <div key={animKey} className={`flex flex-1 min-w-0 ${animClass}`} style={roomsStyle}>
+          {rooms.map(room => (
+            <div key={room.id} className="flex-1 min-w-0 border-l border-border" style={roomStyle}>
+              <div className={`font-semibold text-muted-foreground text-center py-1 border-b bg-background sticky top-0 z-10 truncate px-1 ${fitScreen ? "text-[10px]" : "text-xs"}`}>
+                {room.name}
+              </div>
+              <div
+                className="grid text-center sticky top-6 z-10 bg-background border-b"
+                style={{ gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))` }}
+              >
+                {days.map(day => (
+                  <div
+                    key={day.toISOString()}
+                    className={`border-r last:border-r-0 ${isSameDay(day, new Date()) ? "bg-[#669bbc]/20 text-[#003049] font-semibold" : "text-muted-foreground"} ${fitScreen ? "py-0.5" : "py-1 text-xs"}`}
+                  >
+                    {fitScreen ? (
+                      <div className="flex flex-col items-center leading-none">
+                        <span className="text-[9px] text-gray-400">{format(day, "EEEEE")}</span>
+                        <span className={`text-[10px] ${isSameDay(day, new Date()) ? "font-bold" : ""}`}>{format(day, "d")}</span>
+                      </div>
+                    ) : format(day, "EEE d")}
+                  </div>
+                ))}
+              </div>
             </div>
-            <div
-              className="grid text-center sticky top-6 z-10 bg-background border-b"
-              style={{ gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))` }}
-            >
-              {days.map(day => (
-                <div
-                  key={day.toISOString()}
-                  className={`border-r last:border-r-0 ${isSameDay(day, new Date()) ? "bg-[#669bbc]/20 text-[#003049] font-semibold" : "text-muted-foreground"} ${fitScreen ? "py-0.5" : "py-1 text-xs"}`}
-                >
-                  {fitScreen ? (
-                    <div className="flex flex-col items-center leading-none">
-                      <span className="text-[9px] text-gray-400">{format(day, "EEEEE")}</span>
-                      <span className={`text-[10px] ${isSameDay(day, new Date()) ? "font-bold" : ""}`}>{format(day, "d")}</span>
-                    </div>
-                  ) : format(day, "EEE d")}
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
 
       {/* Body */}
-      <div ref={calendarBodyRef} className="flex" style={outerStyle}>
-        {/* Time gutter */}
+      <div ref={calendarBodyRef} className="flex">
+        {/* Time gutter — static, never animated */}
         <div className={`${gutterClass} relative`} style={{ height: totalHeight }}>
           {timeLabels.map((label, i) => {
             if (i % labelInterval !== 0) return null;
@@ -280,7 +287,8 @@ export function WeeklyCalendar({
             );
           })}
         </div>
-
+        {/* Day columns — animated */}
+        <div key={animKey} className={`flex flex-1 min-w-0 ${animClass}`} style={roomsStyle}>
         {rooms.map(room => (
           <div
             key={room.id}
@@ -357,13 +365,14 @@ export function WeeklyCalendar({
                     );
                   })}
 
-                  {loading && <div className="absolute inset-0 bg-white/50" />}
+                  {loading && <div className="absolute inset-0 bg-background/50" />}
                 </div>
               );
             })}
           </div>
         ))}
-      </div>
+        </div> {/* end animated rooms wrapper */}
+      </div> {/* end body flex row */}
     </div>
   );
 }

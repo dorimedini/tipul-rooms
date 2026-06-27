@@ -333,21 +333,18 @@ export function ScheduleApp({ currentUser, locations, rooms, allProfiles }: Prop
               {locations.length === 0 ? "No locations configured yet." : "No rooms in this location."}
             </div>
           ) : (
-            <div
-              key={calKey}
-              className={navDir === "forward" ? "cal-enter-forward" : navDir === "backward" ? "cal-enter-backward" : ""}
-            >
-              <WeeklyCalendar
-                days={displayDays}
-                rooms={[selectedRoom]}
-                allocations={allocations}
-                currentUserId={currentUser.id}
-                loading={loading}
-                fitScreen={isMobile && calendarView === "week"}
-                onSlotClick={(roomId, date, startTime, durationMinutes) => setBookingSlot({ roomId, date, startTime, durationMinutes })}
-                onAllocationClick={setActionAllocation}
-              />
-            </div>
+            <WeeklyCalendar
+              days={displayDays}
+              rooms={[selectedRoom]}
+              allocations={allocations}
+              currentUserId={currentUser.id}
+              loading={loading}
+              fitScreen={isMobile && calendarView === "week"}
+              animKey={calKey}
+              animClass={navDir === "forward" ? "cal-enter-forward" : navDir === "backward" ? "cal-enter-backward" : ""}
+              onSlotClick={(roomId, date, startTime, durationMinutes) => setBookingSlot({ roomId, date, startTime, durationMinutes })}
+              onAllocationClick={setActionAllocation}
+            />
           )}
         </main>
 
