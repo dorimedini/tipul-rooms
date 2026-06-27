@@ -154,7 +154,7 @@ export function LocationsManager({ open, onClose, onChanged }: Props) {
           {/* Locations list */}
           {locations.map(loc => (
             <div key={loc.id} className="border rounded-lg">
-              <div className="flex items-center justify-between px-4 py-2 bg-gray-50 rounded-t-lg">
+              <div className="flex items-center justify-between px-4 py-2 bg-muted rounded-t-lg">
                 <span className="font-medium text-sm">{loc.name}</span>
                 <div className="flex gap-2">
                   <Button size="sm" variant="outline" onClick={() => openAddRoom(loc.id)}>
@@ -225,7 +225,7 @@ export function LocationsManager({ open, onClose, onChanged }: Props) {
 
           {/* Room form (add or edit hours) */}
           {showRoomForm && (
-            <div className="border rounded-lg p-4 bg-blue-50 space-y-4">
+            <div className="border rounded-lg p-4 bg-secondary space-y-4">
               <div className="font-medium text-sm">
                 {editingRoomHours ? `Edit hours: ${editingRoomHours.name}` : "New room"}
               </div>

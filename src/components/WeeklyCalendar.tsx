@@ -231,23 +231,23 @@ export function WeeklyCalendar({
   const roomStyle = fitScreen ? {} : { minWidth: days.length * 100 };
 
   return (
-    <div className={`${fitScreen ? "w-full" : "overflow-x-auto"} border border-gray-200`}>
+    <div className={`${fitScreen ? "w-full" : "overflow-x-auto"} border border-border`}>
       {/* Header */}
       <div className="flex" style={outerStyle}>
         <div className={gutterClass} />
         {rooms.map(room => (
-          <div key={room.id} className="flex-1 min-w-0 border-l border-gray-200" style={roomStyle}>
-            <div className={`font-semibold text-gray-500 text-center py-1 border-b bg-white sticky top-0 z-10 truncate px-1 ${fitScreen ? "text-[10px]" : "text-xs"}`}>
+          <div key={room.id} className="flex-1 min-w-0 border-l border-border" style={roomStyle}>
+            <div className={`font-semibold text-muted-foreground text-center py-1 border-b bg-background sticky top-0 z-10 truncate px-1 ${fitScreen ? "text-[10px]" : "text-xs"}`}>
               {room.name}
             </div>
             <div
-              className="grid text-center sticky top-6 z-10 bg-white border-b"
+              className="grid text-center sticky top-6 z-10 bg-background border-b"
               style={{ gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))` }}
             >
               {days.map(day => (
                 <div
                   key={day.toISOString()}
-                  className={`border-r last:border-r-0 ${isSameDay(day, new Date()) ? "bg-blue-50 text-blue-700 font-semibold" : "text-gray-500"} ${fitScreen ? "py-0.5" : "py-1 text-xs"}`}
+                  className={`border-r last:border-r-0 ${isSameDay(day, new Date()) ? "bg-[#669bbc]/20 text-[#003049] font-semibold" : "text-muted-foreground"} ${fitScreen ? "py-0.5" : "py-1 text-xs"}`}
                 >
                   {fitScreen ? (
                     <div className="flex flex-col items-center leading-none">
@@ -272,7 +272,7 @@ export function WeeklyCalendar({
             return (
               <div
                 key={label}
-                className={`absolute text-gray-400 -translate-y-2 ${fitScreen ? "right-0.5 text-[9px]" : "right-1 text-xs"}`}
+                className={`absolute text-muted-foreground -translate-y-2 ${fitScreen ? "right-0.5 text-[9px]" : "right-1 text-xs"}`}
                 style={{ top }}
               >
                 {fitScreen || slotHeight <= 10 ? shortHour(label) : label}
@@ -284,7 +284,7 @@ export function WeeklyCalendar({
         {rooms.map(room => (
           <div
             key={room.id}
-            className="flex-1 min-w-0 grid border-l border-gray-200"
+            className="flex-1 min-w-0 grid border-l border-border"
             style={{ gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))` }}
           >
             {days.map(day => {
@@ -320,12 +320,12 @@ export function WeeklyCalendar({
                 >
                   {timeLabels.map(label => {
                     const top = ((timeToMinutes(label) - DAY_START) / 15) * slotHeight;
-                    return <div key={label} className="absolute w-full border-t border-gray-100" style={{ top }} />;
+                    return <div key={label} className="absolute w-full border-t border-border/40" style={{ top }} />;
                   })}
 
                   {cellDrag && (
                     <div
-                      className="absolute left-0.5 right-0.5 rounded border-2 border-blue-400 bg-blue-100 opacity-70 z-20 pointer-events-none"
+                      className="absolute left-0.5 right-0.5 rounded border-2 border-[#c1121f] bg-[#c1121f]/15 opacity-80 z-20 pointer-events-none"
                       style={{ top: previewTop, height: previewHeight }}
                     />
                   )}

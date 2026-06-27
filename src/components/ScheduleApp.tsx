@@ -169,12 +169,12 @@ export function ScheduleApp({ currentUser, locations, rooms, allProfiles }: Prop
   }, []);
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
+    <div className="flex flex-col h-screen">
       {/* Header */}
-      <header className="bg-white border-b px-4">
+      <header className="bg-[#003049] px-4">
         <div className="flex items-center justify-between py-2 md:py-3">
           <div className="flex items-center gap-2 md:gap-4">
-            <h1 className="text-lg font-semibold text-gray-900">Tipul Rooms</h1>
+            <h1 className="text-lg font-semibold text-white">Tipul Rooms</h1>
             {/* Desktop: location tabs inline with title */}
             <nav className="hidden md:flex gap-1">
               {locations.map(loc => (
@@ -183,8 +183,8 @@ export function ScheduleApp({ currentUser, locations, rooms, allProfiles }: Prop
                   onClick={() => setSelectedLocationId(loc.id)}
                   className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
                     selectedLocationId === loc.id
-                      ? "bg-blue-100 text-blue-700 font-medium"
-                      : "text-gray-600 hover:bg-gray-100"
+                      ? "bg-[#669bbc]/30 text-white font-medium"
+                      : "text-white/70 hover:bg-white/10"
                   }`}
                 >
                   {loc.name}
@@ -194,28 +194,35 @@ export function ScheduleApp({ currentUser, locations, rooms, allProfiles }: Prop
           </div>
           <div className="flex items-center gap-2 md:gap-3">
             <Button
-              variant={sidePanel === "swaps" ? "default" : "outline"}
+              variant="ghost"
               size="sm"
               onClick={() => togglePanel("swaps")}
+              className={sidePanel === "swaps"
+                ? "text-white bg-white/20 hover:bg-white/25"
+                : "text-white/80 hover:text-white hover:bg-white/10"}
             >
               Swaps
               {pendingSwapsCount > 0 && (
-                <Badge className="ml-1.5 bg-orange-500 text-white text-xs px-1.5 py-0">
+                <Badge className="ml-1.5 bg-[#c1121f] text-white text-xs px-1.5 py-0">
                   {pendingSwapsCount}
                 </Badge>
               )}
             </Button>
             {currentUser.is_admin && (
               <Button
-                variant={sidePanel === "admin" ? "default" : "outline"}
+                variant="ghost"
                 size="sm"
                 onClick={() => togglePanel("admin")}
+                className={sidePanel === "admin"
+                  ? "text-white bg-white/20 hover:bg-white/25"
+                  : "text-white/80 hover:text-white hover:bg-white/10"}
               >
                 Admin
               </Button>
             )}
-            <span className="hidden md:inline text-sm text-gray-500">{currentUser.name}</span>
-            <Button variant="ghost" size="sm" onClick={handleSignOut}>Sign out</Button>
+            <span className="hidden md:inline text-sm text-white/60">{currentUser.name}</span>
+            <Button variant="ghost" size="sm" onClick={handleSignOut}
+              className="text-white/70 hover:text-white hover:bg-white/10">Sign out</Button>
           </div>
         </div>
         {/* Mobile: location tabs in a second row */}
@@ -227,8 +234,8 @@ export function ScheduleApp({ currentUser, locations, rooms, allProfiles }: Prop
                 onClick={() => setSelectedLocationId(loc.id)}
                 className={`px-3 py-1.5 text-sm rounded-md transition-colors whitespace-nowrap ${
                   selectedLocationId === loc.id
-                    ? "bg-blue-100 text-blue-700 font-medium"
-                    : "text-gray-600 hover:bg-gray-100"
+                    ? "bg-[#669bbc]/30 text-white font-medium"
+                    : "text-white/70 hover:bg-white/10"
                 }`}
               >
                 {loc.name}
@@ -238,15 +245,15 @@ export function ScheduleApp({ currentUser, locations, rooms, allProfiles }: Prop
         )}
         {/* Room tabs */}
         {locationRooms.length > 0 && (
-          <nav className="flex gap-1 overflow-x-auto pb-2 border-t pt-2">
+          <nav className="flex gap-1 overflow-x-auto pb-2 border-t border-white/10 pt-2">
             {locationRooms.map(room => (
               <button
                 key={room.id}
                 onClick={() => setSelectedRoomId(room.id)}
                 className={`px-3 py-1.5 text-sm rounded-md transition-colors whitespace-nowrap ${
                   room.id === (selectedRoom?.id)
-                    ? "bg-gray-900 text-white font-medium"
-                    : "text-gray-600 hover:bg-gray-100"
+                    ? "bg-[#c1121f] text-white font-medium"
+                    : "text-white/70 hover:bg-white/10"
                 }`}
               >
                 {room.name}
@@ -261,13 +268,13 @@ export function ScheduleApp({ currentUser, locations, rooms, allProfiles }: Prop
           {/* Navigation bar */}
           <div className="flex items-center gap-2 mb-4 flex-wrap">
             {/* Day/Week toggle */}
-            <div className="flex rounded-md border overflow-hidden text-sm shrink-0">
+            <div className="flex rounded-md border border-border overflow-hidden text-sm shrink-0">
               <button
-                className={`px-3 py-1 ${calendarView === "day" ? "bg-blue-100 text-blue-700 font-medium" : "text-gray-600"}`}
+                className={`px-3 py-1 ${calendarView === "day" ? "bg-[#003049] text-white font-medium" : "text-foreground/60"}`}
                 onClick={() => setCalendarView("day")}
               >Day</button>
               <button
-                className={`px-3 py-1 border-l ${calendarView === "week" ? "bg-blue-100 text-blue-700 font-medium" : "text-gray-600"}`}
+                className={`px-3 py-1 border-l border-border ${calendarView === "week" ? "bg-[#003049] text-white font-medium" : "text-foreground/60"}`}
                 onClick={() => setCalendarView("week")}
               >Week</button>
             </div>
@@ -276,7 +283,7 @@ export function ScheduleApp({ currentUser, locations, rooms, allProfiles }: Prop
             {calendarView === "day" && (
               <div className="flex items-center gap-2">
                 <Button variant="outline" size="sm" onClick={prevDay}>←</Button>
-                <span className="text-sm font-medium text-gray-700 min-w-[130px] text-center">
+                <span className="text-sm font-medium text-foreground min-w-[130px] text-center">
                   {format(allDays[mobileDayIndex], "EEE, MMM d")}
                 </span>
                 <Button variant="outline" size="sm" onClick={nextDay}>→</Button>
@@ -288,7 +295,7 @@ export function ScheduleApp({ currentUser, locations, rooms, allProfiles }: Prop
             {calendarView === "week" && (
               <div className="flex items-center gap-2">
                 <Button variant="outline" size="sm" onClick={() => setWeekStart(d => subWeeks(d, 1))}>←</Button>
-                <span className="text-sm font-medium text-gray-700 min-w-[160px] text-center">
+                <span className="text-sm font-medium text-foreground min-w-[160px] text-center">
                   {format(weekStart, "MMM d")} – {format(weekEnd, "MMM d, yyyy")}
                 </span>
                 <Button variant="outline" size="sm" onClick={() => setWeekStart(d => addWeeks(d, 1))}>→</Button>
@@ -298,7 +305,7 @@ export function ScheduleApp({ currentUser, locations, rooms, allProfiles }: Prop
           </div>
 
           {!selectedRoom ? (
-            <div className="text-center py-20 text-gray-400">
+            <div className="text-center py-20 text-muted-foreground">
               {locations.length === 0 ? "No locations configured yet." : "No rooms in this location."}
             </div>
           ) : (
@@ -316,7 +323,7 @@ export function ScheduleApp({ currentUser, locations, rooms, allProfiles }: Prop
         </main>
 
         {sidePanel === "swaps" && (
-          <aside className="fixed inset-0 z-50 bg-white overflow-auto md:relative md:inset-auto md:z-auto md:w-80 md:border-l md:shrink-0">
+          <aside className="fixed inset-0 z-50 bg-background overflow-auto md:relative md:inset-auto md:z-auto md:w-80 md:border-l md:shrink-0">
             <SwapRequestsPanel
               swapRequests={swapRequests}
               currentUserId={currentUser.id}
@@ -327,7 +334,7 @@ export function ScheduleApp({ currentUser, locations, rooms, allProfiles }: Prop
         )}
 
         {sidePanel === "admin" && currentUser.is_admin && (
-          <aside className="fixed inset-0 z-50 bg-white overflow-auto md:relative md:inset-auto md:z-auto md:w-80 md:border-l md:shrink-0">
+          <aside className="fixed inset-0 z-50 bg-background overflow-auto md:relative md:inset-auto md:z-auto md:w-80 md:border-l md:shrink-0">
             <AdminPanel
               currentUser={currentUser}
               onClose={() => setSidePanel(null)}
