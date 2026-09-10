@@ -31,6 +31,7 @@ export async function proxy(request: NextRequest) {
     path.startsWith("/login") ||
     path.startsWith("/auth") ||
     path.startsWith("/unauthorized") ||
+    path.startsWith("/api/cron/") ||
     path === "/api/notify-unregistered";
 
   if (!user && !isPublic) {
