@@ -3,6 +3,14 @@ import { createClient } from "@/lib/supabase/server";
 import { generateOccurrences, formatDateForDB, doTimesOverlap, hoursViolation } from "@/lib/allocations";
 import { parseISO } from "date-fns";
 
+/** Postgres unique-violation (23505) surfaced as something a therapist can act on. */
+function describeInsertError(err: { code?: string; message: string }): string {
+  if (err.code === "23505") {
+    return "That slot is already taken in this room. Reload the calendar and try again.";
+  }
+  return err.message;
+}
+
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -91,7 +99,11 @@ export async function POST(req: NextRequest) {
       }))
     );
 
-    if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 500 });
+    if (insertErr) {
+      // Don't leave a series row behind with no occurrences under it.
+      await supabase.from("allocation_series").delete().eq("id", series.id);
+      return NextResponse.json({ error: describeInsertError(insertErr) }, { status: 409 });
+    }
 
     return NextResponse.json({ series, count: dates.length });
   } else {
@@ -116,7 +128,7 @@ export async function POST(req: NextRequest) {
       .select()
       .single();
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return NextResponse.json({ error: describeInsertError(error) }, { status: 409 });
     return NextResponse.json(data);
   }
 }
