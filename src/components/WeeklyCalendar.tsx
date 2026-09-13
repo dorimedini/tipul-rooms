@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useState } from "react";
 import { format, isSameDay } from "date-fns";
-import { AllocationWithDetails, RoomHours } from "@/lib/supabase/types";
+import { AllocationWithDetails, RoomHours, HolidayBlock } from "@/lib/supabase/types";
 import type { Holiday } from "@/lib/holidays";
 import { timeToMinutes, minutesToTime, closedRanges } from "@/lib/allocations";
 
@@ -23,6 +23,7 @@ interface Props {
   currentUserId: string;
   canBook: boolean;
   holidays: Holiday[];
+  holidayBlocks: HolidayBlock[];
   loading: boolean;
   fitScreen?: boolean;
   animKey?: number;
@@ -66,7 +67,7 @@ function pinchDist(touches: TouchList): number {
 }
 
 export function WeeklyCalendar({
-  days, rooms, allocations, currentUserId, canBook, holidays, loading,
+  days, rooms, allocations, currentUserId, canBook, holidays, holidayBlocks, loading,
   fitScreen = false, animKey, animClass = "",
   onSlotClick, onAllocationClick,
 }: Props) {
@@ -220,12 +221,20 @@ export function WeeklyCalendar({
     return closedRanges(room.room_hours ?? [], day.getDay(), DAY_START, DAY_END);
   }
 
+  // Holiday blocks are global — every room in every location, matched on date.
+  function blocksFor(day: Date): HolidayBlock[] {
+    const key = format(day, "yyyy-MM-dd");
+    return holidayBlocks.filter(b => b.date === key);
+  }
+
   function beginDrag(room: Room, day: Date, clientY: number, clientX: number, cellTop: number) {
     const sh = slotHeightRef.current;
     const y = clientY - cellTop;
     const startMin = Math.max(DAY_START, Math.min(DAY_END - 15, DAY_START + Math.floor(y / sh) * 15));
-    // Closed periods are not bookable; the server rejects them too.
+    // Closed periods and holiday blocks are not bookable; the server agrees.
     if (closedFor(room, day).some(([from, to]) => startMin >= from && startMin < to)) return;
+    if (blocksFor(day).some(b =>
+      startMin >= timeToMinutes(b.start_time) && startMin < timeToMinutes(b.end_time))) return;
     pointerDownY.current = clientY;
     pointerDownX.current = clientX;
     didDrag.current = false;
@@ -413,6 +422,24 @@ export function WeeklyCalendar({
                             {alloc.start_time.slice(0, 5)}
                           </div>
                         )}
+                      </div>
+                    );
+                  })}
+
+                  {blocksFor(day).map(block => {
+                    const top = ((timeToMinutes(block.start_time) - DAY_START) / 15) * slotHeight;
+                    const height =
+                      ((timeToMinutes(block.end_time) - timeToMinutes(block.start_time)) / 15) * slotHeight;
+                    return (
+                      <div
+                        key={block.id}
+                        title={`${block.title} · ${block.start_time.slice(0, 5)}–${block.end_time.slice(0, 5)}`}
+                        className={`absolute left-0.5 right-0.5 z-10 overflow-hidden rounded bg-[#780000] font-semibold leading-tight text-[#fdf0d5] ${
+                          fitScreen ? "px-0.5 text-[9px]" : "px-1 text-xs"
+                        }`}
+                        style={{ top: top + 1, height: height - 2 }}
+                      >
+                        <span className="block truncate">{block.title}</span>
                       </div>
                     );
                   })}

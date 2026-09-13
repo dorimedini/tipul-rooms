@@ -108,3 +108,16 @@ export function closedRanges(
   if (close < windowEnd) ranges.push([close, windowEnd]);
   return ranges;
 }
+
+/** Does a global holiday block cover any part of this booking? */
+export function blockCoversBooking(
+  block: { start_time: string; end_time: string },
+  startTime: string,
+  durationMinutes: number
+): boolean {
+  const blockStart = timeToMinutes(block.start_time);
+  const blockEnd = timeToMinutes(block.end_time);
+  const start = timeToMinutes(startTime);
+  const end = start + durationMinutes;
+  return start < blockEnd && blockStart < end;
+}

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { generateOccurrences, formatDateForDB, doTimesOverlap, hoursViolation } from "@/lib/allocations";
+import { generateOccurrences, formatDateForDB, doTimesOverlap, hoursViolation, blockCoversBooking } from "@/lib/allocations";
 import { parseISO } from "date-fns";
 
 /** Postgres unique-violation (23505) surfaced as something a therapist can act on. */
@@ -48,7 +48,28 @@ export async function POST(req: NextRequest) {
     const start = parseISO(date);
     const end = parseISO(seriesEnd);
     const dayOfWeek = start.getDay();
-    const dates = generateOccurrences(start, end, dayOfWeek);
+    const allDates = generateOccurrences(start, end, dayOfWeek);
+
+    // Occurrences landing on a holiday block are skipped, not rejected.
+    const { data: blocks } = await supabase
+      .from("holiday_blocks")
+      .select("date, start_time, end_time")
+      .in("date", allDates.map(formatDateForDB));
+
+    const blockedDates = new Set(
+      (blocks ?? [])
+        .filter(b => blockCoversBooking(b, startTime, durationMinutes))
+        .map(b => b.date)
+    );
+    const dates = allDates.filter(d => !blockedDates.has(formatDateForDB(d)));
+    const skipped = allDates.length - dates.length;
+
+    if (dates.length === 0) {
+      return NextResponse.json(
+        { error: "Every occurrence falls on a holiday block." },
+        { status: 409 }
+      );
+    }
 
     // Check for conflicts across all dates
     const { data: existingAll } = await supabase
@@ -105,9 +126,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: describeInsertError(insertErr) }, { status: 409 });
     }
 
-    return NextResponse.json({ series, count: dates.length });
+    return NextResponse.json({ series, count: dates.length, skipped });
   } else {
-    // Single allocation
+    // Single allocation — nothing to skip, so a block is a rejection
+    const { data: blocks } = await supabase
+      .from("holiday_blocks")
+      .select("title, start_time, end_time")
+      .eq("date", date);
+
+    const blocked = (blocks ?? []).find(b => blockCoversBooking(b, startTime, durationMinutes));
+    if (blocked) {
+      return NextResponse.json(
+        { error: `Blocked that day by “${blocked.title}”.` },
+        { status: 409 }
+      );
+    }
+
     const { data: existing } = await supabase
       .from("allocations")
       .select("id, start_time, duration_minutes")

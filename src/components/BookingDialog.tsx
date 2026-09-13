@@ -33,6 +33,7 @@ export function BookingDialog({ slot, rooms, currentUser, allProfiles, locations
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [conflicts, setConflicts] = useState<string[]>([]);
+  const [skipped, setSkipped] = useState<{ count: number; created: number } | null>(null);
 
   async function handleSave() {
     setSaving(true);
@@ -57,6 +58,9 @@ export function BookingDialog({ slot, rooms, currentUser, allProfiles, locations
       if (!res.ok) {
         if (data.conflicts) setConflicts(data.conflicts);
         else setError(data.error ?? "Failed to save");
+      } else if (data.skipped > 0) {
+        // Booked, but say which occurrences a holiday block swallowed.
+        setSkipped({ count: data.skipped, created: data.count });
       } else {
         onSaved();
       }
@@ -199,6 +203,15 @@ export function BookingDialog({ slot, rooms, currentUser, allProfiles, locations
             </Alert>
           )}
 
+          {skipped && (
+            <Alert>
+              <AlertDescription>
+                Booked {skipped.created} session(s). {skipped.count} skipped — those dates fall on a
+                holiday block.
+              </AlertDescription>
+            </Alert>
+          )}
+
           {conflicts.length > 0 && (
             <Alert variant="destructive">
               <AlertDescription>
@@ -210,10 +223,16 @@ export function BookingDialog({ slot, rooms, currentUser, allProfiles, locations
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSave} disabled={saving}>
-            {saving ? "Saving…" : recurring ? "Book recurring" : "Book"}
-          </Button>
+          {skipped ? (
+            <Button onClick={onSaved}>Done</Button>
+          ) : (
+            <>
+              <Button variant="outline" onClick={onClose}>Cancel</Button>
+              <Button onClick={handleSave} disabled={saving}>
+                {saving ? "Saving…" : recurring ? "Book recurring" : "Book"}
+              </Button>
+            </>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

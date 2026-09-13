@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { Location, Room, RoomHours, Profile, AllocationWithDetails, SwapRequestWithDetails } from "@/lib/supabase/types";
+import { Location, Room, RoomHours, Profile, AllocationWithDetails, SwapRequestWithDetails, HolidayBlock } from "@/lib/supabase/types";
 import type { Holiday } from "@/lib/holidays";
 import { WeeklyCalendar } from "./WeeklyCalendar";
 import { BookingDialog } from "./BookingDialog";
@@ -38,6 +38,7 @@ export function ScheduleApp({ currentUser, locations, rooms, allProfiles, initia
   const [allocations, setAllocations] = useState<AllocationWithDetails[]>([]);
   const [swapRequests, setSwapRequests] = useState<SwapRequestWithDetails[]>([]);
   const [holidays, setHolidays] = useState<Holiday[]>(initialHolidays);
+  const [holidayBlocks, setHolidayBlocks] = useState<HolidayBlock[]>([]);
   const [loading, setLoading] = useState(false);
   const [sidePanel, setSidePanel] = useState<SidePanel>(null);
   const [isMobile, setIsMobile] = useState(false);
@@ -91,6 +92,17 @@ export function ScheduleApp({ currentUser, locations, rooms, allProfiles, initia
     setHolidays(prev => [...prev, ...(data.holidays ?? [])]);
   }, [weekStart]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const fetchHolidayBlocks = useCallback(async () => {
+    const { data } = await supabase
+      .from("holiday_blocks")
+      .select("*")
+      .gte("date", format(weekStart, "yyyy-MM-dd"))
+      .lte("date", format(weekEnd, "yyyy-MM-dd"))
+      .order("date")
+      .order("start_time");
+    setHolidayBlocks(data ?? []);
+  }, [weekStart]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const fetchSwapRequests = useCallback(async () => {
     const { data } = await supabase
       .from("swap_requests")
@@ -107,6 +119,7 @@ export function ScheduleApp({ currentUser, locations, rooms, allProfiles, initia
   useEffect(() => { fetchAllocations(); }, [fetchAllocations]);
   useEffect(() => { fetchSwapRequests(); }, [fetchSwapRequests]);
   useEffect(() => { fetchHolidays(); }, [fetchHolidays]);
+  useEffect(() => { fetchHolidayBlocks(); }, [fetchHolidayBlocks]);
 
   const pendingSwapsCount = swapRequests.filter(
     s => (s.target_allocation as any)?.user_id === currentUser.id ||
@@ -369,6 +382,7 @@ export function ScheduleApp({ currentUser, locations, rooms, allProfiles, initia
               currentUserId={currentUser.id}
               canBook={currentUser.is_admin}
               holidays={holidays}
+              holidayBlocks={holidayBlocks}
               loading={loading}
               fitScreen={isMobile && calendarView === "week"}
               animKey={calKey}
@@ -397,6 +411,7 @@ export function ScheduleApp({ currentUser, locations, rooms, allProfiles, initia
               onClose={() => setSidePanel(null)}
               onSelfDemoted={() => { setSidePanel(null); window.location.reload(); }}
               onLocationsChanged={() => router.refresh()}
+              onHolidayBlocksChanged={() => { fetchHolidayBlocks(); fetchAllocations(); }}
             />
           </aside>
         )}

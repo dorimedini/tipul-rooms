@@ -69,6 +69,21 @@ export interface Database {
         };
         Relationships: [];
       };
+      holiday_blocks: {
+        Row: {
+          id: string; date: string; start_time: string; end_time: string;
+          title: string; created_by: string | null; created_at: string;
+        };
+        Insert: {
+          id?: string; date: string; start_time: string; end_time: string;
+          title: string; created_by?: string | null; created_at?: string;
+        };
+        Update: {
+          id?: string; date?: string; start_time?: string; end_time?: string;
+          title?: string; created_by?: string | null; created_at?: string;
+        };
+        Relationships: [];
+      };
       room_hours: {
         Row: { id: string; room_id: string; day_of_week: number; open_time: string; close_time: string };
         Insert: { id?: string; room_id: string; day_of_week: number; open_time: string; close_time: string };
@@ -109,6 +124,7 @@ export type Room = Database["public"]["Tables"]["rooms"]["Row"];
 export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 export type InvitedEmail = Database["public"]["Tables"]["invited_emails"]["Row"];
 export type RoomHours = Database["public"]["Tables"]["room_hours"]["Row"];
+export type HolidayBlock = Database["public"]["Tables"]["holiday_blocks"]["Row"];
 export type RoomWithHours = Room & { room_hours: RoomHours[] };
 export type AllocationSeries = Database["public"]["Tables"]["allocation_series"]["Row"];
 export type Allocation = Database["public"]["Tables"]["allocations"]["Row"];

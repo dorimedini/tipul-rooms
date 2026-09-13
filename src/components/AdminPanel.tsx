@@ -7,6 +7,7 @@ import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Alert, AlertDescription } from "./ui/alert";
 import { LocationsManager } from "./LocationsManager";
+import { HolidayBlocksManager } from "./HolidayBlocksManager";
 import { format, parseISO } from "date-fns";
 
 interface Props {
@@ -14,9 +15,10 @@ interface Props {
   onClose: () => void;
   onSelfDemoted: () => void;
   onLocationsChanged: () => void;
+  onHolidayBlocksChanged: () => void;
 }
 
-export function AdminPanel({ currentUser, onClose, onSelfDemoted, onLocationsChanged }: Props) {
+export function AdminPanel({ currentUser, onClose, onSelfDemoted, onLocationsChanged, onHolidayBlocksChanged }: Props) {
   const supabase = createClient();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [invites, setInvites] = useState<InvitedEmail[]>([]);
@@ -26,6 +28,7 @@ export function AdminPanel({ currentUser, onClose, onSelfDemoted, onLocationsCha
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [showLocations, setShowLocations] = useState(false);
+  const [showHolidayBlocks, setShowHolidayBlocks] = useState(false);
 
   const refresh = useCallback(async () => {
     const [{ data: p }, { data: i }] = await Promise.all([
@@ -202,6 +205,14 @@ export function AdminPanel({ currentUser, onClose, onSelfDemoted, onLocationsCha
           </Button>
         </section>
 
+        {/* Holiday blocks */}
+        <section className="pt-2 border-t">
+          <h3 className="text-xs font-semibold text-gray-400 uppercase mb-2">Holiday blocks</h3>
+          <Button variant="outline" size="sm" onClick={() => setShowHolidayBlocks(true)}>
+            Manage holiday blocks
+          </Button>
+        </section>
+
         {/* Relinquish own admin */}
         <section className="pt-2 border-t">
           <h3 className="text-xs font-semibold text-gray-400 uppercase mb-2">Relinquish admin</h3>
@@ -227,6 +238,12 @@ export function AdminPanel({ currentUser, onClose, onSelfDemoted, onLocationsCha
         open={showLocations}
         onClose={() => setShowLocations(false)}
         onChanged={onLocationsChanged}
+      />
+
+      <HolidayBlocksManager
+        open={showHolidayBlocks}
+        onClose={() => setShowHolidayBlocks(false)}
+        onChanged={onHolidayBlocksChanged}
       />
     </div>
   );
