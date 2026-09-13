@@ -28,9 +28,14 @@ export function LocationsManager({ open, onClose, onChanged }: Props) {
   // Add location form
   const [newLocName, setNewLocName] = useState("");
 
+  // Inline location rename (null = not renaming)
+  const [editingLocationId, setEditingLocationId] = useState<string | null>(null);
+  const [locationName, setLocationName] = useState("");
+  const [savingLocation, setSavingLocation] = useState(false);
+
   // Room form state (null = closed)
   const [addingRoomForLocation, setAddingRoomForLocation] = useState<string | null>(null);
-  const [editingRoomHours, setEditingRoomHours] = useState<RoomWithHours | null>(null);
+  const [editingRoom, setEditingRoom] = useState<RoomWithHours | null>(null);
   const [roomName, setRoomName] = useState("");
   const [hours, setHours] = useState<HourRow[]>(DEFAULT_HOURS);
   const [saving, setSaving] = useState(false);
@@ -75,6 +80,25 @@ export function LocationsManager({ open, onClose, onChanged }: Props) {
     else { const d = await res.json(); notify(d.error); }
   }
 
+  function openRenameLocation(loc: Location) {
+    setEditingLocationId(loc.id);
+    setLocationName(loc.name);
+  }
+
+  async function saveLocationName(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingLocationId || !locationName.trim()) return;
+    setSavingLocation(true);
+    const res = await fetch(`/api/admin/locations/${editingLocationId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: locationName.trim() }),
+    });
+    setSavingLocation(false);
+    if (res.ok) { setEditingLocationId(null); await refresh(); onChanged(); }
+    else { const d = await res.json(); notify(d.error); }
+  }
+
   async function deleteRoom(room: RoomWithHours) {
     if (!window.confirm(`Delete room "${room.name}"? This will also delete all bookings in this room.`)) return;
     const res = await fetch(`/api/admin/rooms/${room.id}`, { method: "DELETE" });
@@ -84,14 +108,15 @@ export function LocationsManager({ open, onClose, onChanged }: Props) {
 
   function openAddRoom(locationId: string) {
     setAddingRoomForLocation(locationId);
-    setEditingRoomHours(null);
+    setEditingRoom(null);
     setRoomName("");
     setHours(DEFAULT_HOURS.map(h => ({ ...h })));
   }
 
-  function openEditHours(room: RoomWithHours) {
-    setEditingRoomHours(room);
+  function openEditRoom(room: RoomWithHours) {
+    setEditingRoom(room);
     setAddingRoomForLocation(null);
+    setRoomName(room.name);
     const h: HourRow[] = DAY_NAMES.map((_, i) => {
       const existing = room.room_hours.find(rh => rh.day_of_week === i);
       return existing
@@ -103,7 +128,7 @@ export function LocationsManager({ open, onClose, onChanged }: Props) {
 
   function closeRoomForm() {
     setAddingRoomForLocation(null);
-    setEditingRoomHours(null);
+    setEditingRoom(null);
   }
 
   function setHourField(dayIndex: number, field: keyof HourRow, value: string | boolean) {
@@ -121,11 +146,11 @@ export function LocationsManager({ open, onClose, onChanged }: Props) {
     setSaving(true);
     const payload = hoursPayload();
     let res: Response;
-    if (editingRoomHours) {
-      res = await fetch(`/api/admin/rooms/${editingRoomHours.id}`, {
+    if (editingRoom) {
+      res = await fetch(`/api/admin/rooms/${editingRoom.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ hours: payload }),
+        body: JSON.stringify({ name: roomName.trim(), hours: payload }),
       });
     } else {
       res = await fetch("/api/admin/rooms", {
@@ -139,7 +164,7 @@ export function LocationsManager({ open, onClose, onChanged }: Props) {
     else { const d = await res.json(); notify(d.error); }
   }
 
-  const showRoomForm = addingRoomForLocation !== null || editingRoomHours !== null;
+  const showRoomForm = addingRoomForLocation !== null || editingRoom !== null;
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -155,20 +180,44 @@ export function LocationsManager({ open, onClose, onChanged }: Props) {
           {locations.map(loc => (
             <div key={loc.id} className="border rounded-lg">
               <div className="flex items-center justify-between px-4 py-2 bg-muted rounded-t-lg">
-                <span className="font-medium text-sm">{loc.name}</span>
-                <div className="flex gap-2">
-                  <Button size="sm" variant="outline" onClick={() => openAddRoom(loc.id)}>
-                    + Add room
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="text-red-400 hover:text-red-600"
-                    onClick={() => deleteLocation(loc)}
-                  >
-                    Delete location
-                  </Button>
-                </div>
+                {editingLocationId === loc.id ? (
+                  <form onSubmit={saveLocationName} className="flex flex-1 gap-2">
+                    <input
+                      type="text"
+                      value={locationName}
+                      onChange={e => setLocationName(e.target.value)}
+                      className="flex-1 border rounded-md px-2 py-1 text-sm bg-white"
+                      autoFocus
+                      required
+                    />
+                    <Button type="submit" size="sm" disabled={savingLocation}>
+                      {savingLocation ? "Saving…" : "Save"}
+                    </Button>
+                    <Button type="button" size="sm" variant="outline" onClick={() => setEditingLocationId(null)}>
+                      Cancel
+                    </Button>
+                  </form>
+                ) : (
+                  <>
+                    <span className="font-medium text-sm">{loc.name}</span>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" onClick={() => openRenameLocation(loc)}>
+                        Rename
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => openAddRoom(loc.id)}>
+                        + Add room
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-red-400 hover:text-red-600"
+                        onClick={() => deleteLocation(loc)}
+                      >
+                        Delete location
+                      </Button>
+                    </div>
+                  </>
+                )}
               </div>
 
               <div className="divide-y">
@@ -190,8 +239,8 @@ export function LocationsManager({ open, onClose, onChanged }: Props) {
                       </div>
                     </div>
                     <div className="flex gap-2">
-                      <Button size="sm" variant="outline" onClick={() => openEditHours(room)}>
-                        Edit hours
+                      <Button size="sm" variant="outline" onClick={() => openEditRoom(room)}>
+                        Edit
                       </Button>
                       <Button
                         size="sm"
@@ -227,22 +276,20 @@ export function LocationsManager({ open, onClose, onChanged }: Props) {
           {showRoomForm && (
             <div className="border rounded-lg p-4 bg-secondary space-y-4">
               <div className="font-medium text-sm">
-                {editingRoomHours ? `Edit hours: ${editingRoomHours.name}` : "New room"}
+                {editingRoom ? `Edit room: ${editingRoom.name}` : "New room"}
               </div>
 
               <form onSubmit={saveRoom} className="space-y-4">
-                {!editingRoomHours && (
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={roomName}
-                      onChange={e => setRoomName(e.target.value)}
-                      placeholder="Room name…"
-                      className="flex-1 border rounded-md px-3 py-2 text-sm bg-white"
-                      required
-                    />
-                  </div>
-                )}
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={roomName}
+                    onChange={e => setRoomName(e.target.value)}
+                    placeholder="Room name…"
+                    className="flex-1 border rounded-md px-3 py-2 text-sm bg-white"
+                    required
+                  />
+                </div>
 
                 {/* Hours grid */}
                 <div className="space-y-2">
@@ -281,7 +328,7 @@ export function LocationsManager({ open, onClose, onChanged }: Props) {
                 <div className="flex gap-2 justify-end">
                   <Button type="button" variant="outline" size="sm" onClick={closeRoomForm}>Cancel</Button>
                   <Button type="submit" size="sm" disabled={saving}>
-                    {saving ? "Saving…" : editingRoomHours ? "Save hours" : "Add room"}
+                    {saving ? "Saving…" : editingRoom ? "Save room" : "Add room"}
                   </Button>
                 </div>
               </form>

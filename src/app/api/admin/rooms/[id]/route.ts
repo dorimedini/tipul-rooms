@@ -45,22 +45,31 @@ export async function PATCH(
   if (!profile?.is_admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id } = await params;
-  const { hours } = await req.json();
+  const { name, hours } = await req.json();
   // hours: Array<{ dayOfWeek: number; openTime: string; closeTime: string }>
 
-  // Replace all hours: delete existing, insert new
-  await supabase.from("room_hours").delete().eq("room_id", id);
-
-  if (hours?.length) {
-    const { error } = await supabase.from("room_hours").insert(
-      hours.map((h: { dayOfWeek: number; openTime: string; closeTime: string }) => ({
-        room_id: id,
-        day_of_week: h.dayOfWeek,
-        open_time: h.openTime,
-        close_time: h.closeTime,
-      }))
-    );
+  if (name !== undefined) {
+    if (!name?.trim()) return NextResponse.json({ error: "Room name required" }, { status: 400 });
+    const { error } = await supabase.from("rooms").update({ name: name.trim() }).eq("id", id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  // Replace all hours: delete existing, insert new. Skipped entirely when the
+  // caller sends no hours, so a name-only update can't wipe them.
+  if (hours !== undefined) {
+    await supabase.from("room_hours").delete().eq("room_id", id);
+
+    if (hours?.length) {
+      const { error } = await supabase.from("room_hours").insert(
+        hours.map((h: { dayOfWeek: number; openTime: string; closeTime: string }) => ({
+          room_id: id,
+          day_of_week: h.dayOfWeek,
+          open_time: h.openTime,
+          close_time: h.closeTime,
+        }))
+      );
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    }
   }
 
   return NextResponse.json({ ok: true });
