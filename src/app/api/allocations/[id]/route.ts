@@ -58,6 +58,29 @@ export async function PATCH(
     return NextResponse.json({ ok: true, cancelled: cancelled?.length ?? 0 });
   }
 
+  if (action === "rename_single" || action === "rename_from_here") {
+    // An empty title clears it, matching how bookings are created.
+    const title: string | null =
+      typeof body.title === "string" && body.title.trim() ? body.title.trim() : null;
+
+    if (action === "rename_single" || !allocation.series_id) {
+      const { error } = await supabase.from("allocations").update({ title }).eq("id", id);
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ ok: true, renamed: 1 });
+    }
+
+    const { data: renamed, error } = await supabase
+      .from("allocations")
+      .update({ title })
+      .eq("series_id", allocation.series_id)
+      .gte("date", allocation.date)
+      .eq("status", "active")
+      .select("id");
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true, renamed: renamed?.length ?? 0 });
+  }
+
   if (action === "move_from_here") {
     const { newRoomId, newStartTime, newDurationMinutes } = body;
     if (!allocation.series_id) {

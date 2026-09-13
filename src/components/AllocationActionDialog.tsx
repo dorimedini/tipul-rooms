@@ -24,7 +24,7 @@ interface Props {
   onSwapRequest: () => void;
 }
 
-type View = "menu" | "cancel_confirm" | "move";
+type View = "menu" | "cancel_confirm" | "move" | "rename";
 
 export function AllocationActionDialog({
   allocation,
@@ -38,6 +38,8 @@ export function AllocationActionDialog({
 }: Props) {
   const [view, setView] = useState<View>("menu");
   const [scope, setScope] = useState<"single" | "from_here">("single");
+  const [renameScope, setRenameScope] = useState<"single" | "from_here">("single");
+  const [newTitle, setNewTitle] = useState(allocation.title ?? "");
   const [newRoomId, setNewRoomId] = useState(allocation.room_id);
   const [newStartTime, setNewStartTime] = useState(allocation.start_time);
   const [newDuration, setNewDuration] = useState(allocation.duration_minutes);
@@ -65,6 +67,23 @@ export function AllocationActionDialog({
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action }),
+    });
+    setSaving(false);
+    if (res.ok) onUpdate();
+    else {
+      const d = await res.json();
+      setError(d.error ?? "Failed");
+    }
+  }
+
+  async function handleRename() {
+    setSaving(true);
+    setError(null);
+    const action = renameScope === "single" ? "rename_single" : "rename_from_here";
+    const res = await fetch(`/api/allocations/${allocation.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action, title: newTitle }),
     });
     setSaving(false);
     if (res.ok) onUpdate();
@@ -145,6 +164,9 @@ export function AllocationActionDialog({
           <div className="flex flex-col gap-2">
             {isAdmin && (
               <>
+                <Button variant="outline" onClick={() => setView("rename")}>
+                  Edit title
+                </Button>
                 <Button variant="outline" onClick={() => setView("cancel_confirm")}>
                   Cancel booking
                 </Button>
@@ -238,6 +260,45 @@ export function AllocationActionDialog({
               </>
             )}
             {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
+          </div>
+        )}
+
+        {view === "rename" && (
+          <div className="flex flex-col gap-4">
+            <div className="grid gap-2">
+              <Label>Title</Label>
+              <input
+                type="text"
+                value={newTitle}
+                onChange={e => setNewTitle(e.target.value)}
+                placeholder="e.g. Supervision, Group session…"
+                className="border rounded-md px-3 py-2 text-sm"
+                autoFocus
+              />
+              <div className="text-xs text-gray-400">Leave empty to remove the title.</div>
+            </div>
+
+            {hasSeries && (
+              <div className="flex flex-col gap-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="radio" checked={renameScope === "single"} onChange={() => setRenameScope("single")} />
+                  <span className="text-sm">Only this session ({format(allocation.date, "MMM d")})</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="radio" checked={renameScope === "from_here"} onChange={() => setRenameScope("from_here")} />
+                  <span className="text-sm">This and all future sessions in this series</span>
+                </label>
+              </div>
+            )}
+
+            {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
+
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setView("menu")}>Back</Button>
+              <Button disabled={saving} onClick={handleRename}>
+                {saving ? "Saving…" : "Save title"}
+              </Button>
+            </div>
           </div>
         )}
 
