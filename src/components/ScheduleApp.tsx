@@ -226,6 +226,10 @@ export function ScheduleApp({ currentUser, locations, rooms, allProfiles, initia
     };
   }, []);
 
+  // White at 15% over the navy header reads as a hairline just lighter than the
+  // surface — enough to say "pressable" without drawing a box around everything.
+  const headerControl = "border border-white/15 rounded-md";
+
   return (
     <div className="flex flex-col h-screen">
       {/* Header */}
@@ -239,7 +243,7 @@ export function ScheduleApp({ currentUser, locations, rooms, allProfiles, initia
                 <button
                   key={loc.id}
                   onClick={() => setSelectedLocationId(loc.id)}
-                  className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                  className={`px-3 py-1.5 text-sm transition-colors ${headerControl} ${
                     selectedLocationId === loc.id
                       ? "bg-[#669bbc]/30 text-white font-medium"
                       : "text-white/70 hover:bg-white/10"
@@ -255,7 +259,7 @@ export function ScheduleApp({ currentUser, locations, rooms, allProfiles, initia
               href="/prisa-hodshit-5787.pdf"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex h-7 items-center rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] whitespace-nowrap text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+              className={`inline-flex h-7 items-center px-2.5 text-[0.8rem] whitespace-nowrap text-white/80 transition-colors hover:bg-white/10 hover:text-white ${headerControl}`}
             >
               פריסה חודשית תשפ&quot;ז
             </a>
@@ -263,9 +267,9 @@ export function ScheduleApp({ currentUser, locations, rooms, allProfiles, initia
               variant="ghost"
               size="sm"
               onClick={() => togglePanel("swaps")}
-              className={sidePanel === "swaps"
+              className={`${headerControl} ${sidePanel === "swaps"
                 ? "text-white bg-white/20 hover:bg-white/25"
-                : "text-white/80 hover:text-white hover:bg-white/10"}
+                : "text-white/80 hover:text-white hover:bg-white/10"}`}
             >
               Swaps
               {pendingSwapsCount > 0 && (
@@ -279,16 +283,16 @@ export function ScheduleApp({ currentUser, locations, rooms, allProfiles, initia
                 variant="ghost"
                 size="sm"
                 onClick={() => togglePanel("admin")}
-                className={sidePanel === "admin"
+                className={`${headerControl} ${sidePanel === "admin"
                   ? "text-white bg-white/20 hover:bg-white/25"
-                  : "text-white/80 hover:text-white hover:bg-white/10"}
+                  : "text-white/80 hover:text-white hover:bg-white/10"}`}
               >
                 Admin
               </Button>
             )}
             <span className="hidden md:inline text-sm text-white/60">{currentUser.name}</span>
             <Button variant="ghost" size="sm" onClick={handleSignOut}
-              className="text-white/70 hover:text-white hover:bg-white/10">Sign out</Button>
+              className={`${headerControl} text-white/70 hover:text-white hover:bg-white/10`}>Sign out</Button>
           </div>
         </div>
         {/* Mobile: location tabs in a second row */}
@@ -298,7 +302,7 @@ export function ScheduleApp({ currentUser, locations, rooms, allProfiles, initia
               <button
                 key={loc.id}
                 onClick={() => setSelectedLocationId(loc.id)}
-                className={`px-3 py-1.5 text-sm rounded-md transition-colors whitespace-nowrap ${
+                className={`px-3 py-1.5 text-sm transition-colors whitespace-nowrap ${headerControl} ${
                   selectedLocationId === loc.id
                     ? "bg-[#669bbc]/30 text-white font-medium"
                     : "text-white/70 hover:bg-white/10"
@@ -316,7 +320,7 @@ export function ScheduleApp({ currentUser, locations, rooms, allProfiles, initia
               <button
                 key={room.id}
                 onClick={() => setSelectedRoomId(room.id)}
-                className={`px-3 py-1.5 text-sm rounded-md transition-colors whitespace-nowrap ${
+                className={`px-3 py-1.5 text-sm transition-colors whitespace-nowrap ${headerControl} ${
                   room.id === (selectedRoom?.id)
                     ? "bg-[#c1121f] text-white font-medium"
                     : "text-white/70 hover:bg-white/10"
@@ -353,7 +357,7 @@ export function ScheduleApp({ currentUser, locations, rooms, allProfiles, initia
                   {format(allDays[mobileDayIndex], "EEE, MMM d")}
                 </span>
                 <Button variant="outline" size="sm" onClick={nextDay}>→</Button>
-                <Button variant="ghost" size="sm" onClick={goToToday}>Today</Button>
+                <Button variant="outline" size="sm" onClick={goToToday}>Today</Button>
               </div>
             )}
 
@@ -365,7 +369,7 @@ export function ScheduleApp({ currentUser, locations, rooms, allProfiles, initia
                   {format(weekStart, "MMM d")} – {format(weekEnd, "MMM d, yyyy")}
                 </span>
                 <Button variant="outline" size="sm" onClick={nextWeek}>→</Button>
-                <Button variant="ghost" size="sm" onClick={goToToday}>Today</Button>
+                <Button variant="outline" size="sm" onClick={goToToday}>Today</Button>
               </div>
             )}
           </div>
