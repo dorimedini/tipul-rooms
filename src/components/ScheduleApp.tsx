@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Location, Room, RoomHours, Profile, AllocationWithDetails, SwapRequestWithDetails } from "@/lib/supabase/types";
+import type { Holiday } from "@/lib/holidays";
 import { WeeklyCalendar } from "./WeeklyCalendar";
 import { BookingDialog } from "./BookingDialog";
 import { AllocationActionDialog } from "./AllocationActionDialog";
@@ -20,11 +21,13 @@ interface Props {
   locations: Location[];
   rooms: RoomWithLocation[];
   allProfiles: Profile[];
+  initialHolidays: Holiday[];
+  holidayRange: { start: string; end: string };
 }
 
 type SidePanel = "swaps" | "admin" | null;
 
-export function ScheduleApp({ currentUser, locations, rooms, allProfiles }: Props) {
+export function ScheduleApp({ currentUser, locations, rooms, allProfiles, initialHolidays, holidayRange }: Props) {
   const supabase = createClient();
   const router = useRouter();
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 0 }));
@@ -34,6 +37,7 @@ export function ScheduleApp({ currentUser, locations, rooms, allProfiles }: Prop
   );
   const [allocations, setAllocations] = useState<AllocationWithDetails[]>([]);
   const [swapRequests, setSwapRequests] = useState<SwapRequestWithDetails[]>([]);
+  const [holidays, setHolidays] = useState<Holiday[]>(initialHolidays);
   const [loading, setLoading] = useState(false);
   const [sidePanel, setSidePanel] = useState<SidePanel>(null);
   const [isMobile, setIsMobile] = useState(false);
@@ -71,6 +75,22 @@ export function ScheduleApp({ currentUser, locations, rooms, allProfiles }: Prop
     setLoading(false);
   }, [weekStart]);
 
+  // Weeks inside the precomputed window need no request at all; anything further
+  // out is fetched once and kept.
+  const fetchedWeeks = useRef(new Set<string>());
+  const fetchHolidays = useCallback(async () => {
+    const from = format(weekStart, "yyyy-MM-dd");
+    const to = format(weekEnd, "yyyy-MM-dd");
+    if (from >= holidayRange.start && to <= holidayRange.end) return;
+    if (fetchedWeeks.current.has(from)) return;
+    fetchedWeeks.current.add(from);
+
+    const res = await fetch(`/api/holidays?start=${from}&end=${to}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    setHolidays(prev => [...prev, ...(data.holidays ?? [])]);
+  }, [weekStart]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const fetchSwapRequests = useCallback(async () => {
     const { data } = await supabase
       .from("swap_requests")
@@ -86,6 +106,7 @@ export function ScheduleApp({ currentUser, locations, rooms, allProfiles }: Prop
 
   useEffect(() => { fetchAllocations(); }, [fetchAllocations]);
   useEffect(() => { fetchSwapRequests(); }, [fetchSwapRequests]);
+  useEffect(() => { fetchHolidays(); }, [fetchHolidays]);
 
   const pendingSwapsCount = swapRequests.filter(
     s => (s.target_allocation as any)?.user_id === currentUser.id ||
@@ -339,6 +360,7 @@ export function ScheduleApp({ currentUser, locations, rooms, allProfiles }: Prop
               allocations={allocations}
               currentUserId={currentUser.id}
               canBook={currentUser.is_admin}
+              holidays={holidays}
               loading={loading}
               fitScreen={isMobile && calendarView === "week"}
               animKey={calKey}

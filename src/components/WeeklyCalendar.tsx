@@ -3,6 +3,7 @@
 import { useRef, useEffect, useState } from "react";
 import { format, isSameDay } from "date-fns";
 import { AllocationWithDetails, RoomHours } from "@/lib/supabase/types";
+import type { Holiday } from "@/lib/holidays";
 import { timeToMinutes, minutesToTime, closedRanges } from "@/lib/allocations";
 
 interface Room { id: string; name: string; location_id: string; room_hours?: RoomHours[] }
@@ -21,6 +22,7 @@ interface Props {
   allocations: AllocationWithDetails[];
   currentUserId: string;
   canBook: boolean;
+  holidays: Holiday[];
   loading: boolean;
   fitScreen?: boolean;
   animKey?: number;
@@ -64,11 +66,16 @@ function pinchDist(touches: TouchList): number {
 }
 
 export function WeeklyCalendar({
-  days, rooms, allocations, currentUserId, canBook, loading,
+  days, rooms, allocations, currentUserId, canBook, holidays, loading,
   fitScreen = false, animKey, animClass = "",
   onSlotClick, onAllocationClick,
 }: Props) {
   const allUserIds = [...new Set(allocations.map(a => a.user_id))];
+
+  // Holiday strip: only rendered on weeks that actually have one, so the date
+  // row's sticky offset shifts with it.
+  const holidayByDate = new Map(holidays.map(h => [h.date, h]));
+  const weekHasHolidays = days.some(d => holidayByDate.has(format(d, "yyyy-MM-dd")));
 
   const timeLabels: string[] = [];
   for (let m = DAY_START; m <= DAY_END; m += 60) {
@@ -253,8 +260,36 @@ export function WeeklyCalendar({
               <div className={`font-semibold text-muted-foreground text-center py-1 border-b bg-background sticky top-0 z-10 truncate px-1 ${fitScreen ? "text-[10px]" : "text-xs"}`}>
                 {room.name}
               </div>
+              {weekHasHolidays && (
+                <div
+                  className="grid text-center sticky top-6 z-10 h-6 bg-background"
+                  style={{ gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))` }}
+                >
+                  {days.map(day => {
+                    const holiday = holidayByDate.get(format(day, "yyyy-MM-dd"));
+                    return (
+                      <div
+                        key={day.toISOString()}
+                        title={holiday?.full}
+                        className={`flex items-center justify-center border-r last:border-r-0 px-0.5 leading-none ${
+                          fitScreen ? "text-[8px]" : "text-[10px]"
+                        } ${
+                          holiday
+                            ? holiday.chag
+                              ? "bg-[#780000] text-[#fdf0d5] font-semibold"
+                              : "bg-[#780000]/15 text-[#780000] font-medium"
+                            : ""
+                        }`}
+                      >
+                        <span className="truncate">{holiday?.name}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
               <div
-                className="grid text-center sticky top-6 z-10 bg-background border-b"
+                className={`grid text-center sticky z-10 bg-background border-b ${weekHasHolidays ? "top-12" : "top-6"}`}
                 style={{ gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))` }}
               >
                 {days.map(day => (
