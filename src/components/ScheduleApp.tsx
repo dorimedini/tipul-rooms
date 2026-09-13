@@ -238,6 +238,14 @@ export function ScheduleApp({ currentUser, locations, rooms, allProfiles, initia
             </nav>
           </div>
           <div className="flex items-center gap-2 md:gap-3">
+            <a
+              href="/prisa-hodshit-5787.pdf"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex h-7 items-center rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] whitespace-nowrap text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+            >
+              פריסה חודשית תשפ&quot;ז
+            </a>
             <Button
               variant="ghost"
               size="sm"
