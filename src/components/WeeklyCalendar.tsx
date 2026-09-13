@@ -140,6 +140,24 @@ export function WeeklyCalendar({
   const skeletonGesture = useRef<SkeletonGesture | null>(null);
   const skeletonMoved = useRef(false);
 
+  // The strip wraps, so its height varies with the longest holiday name. Measure
+  // it and stick the date row directly below, rather than assuming one line.
+  const ROOM_NAME_HEIGHT = 24; // the sticky room-name row above it
+  const holidayStripRef = useRef<HTMLDivElement>(null);
+  const [stripHeight, setStripHeight] = useState(0);
+  useEffect(() => {
+    const el = holidayStripRef.current;
+    if (!el) {
+      setStripHeight(0);
+      return;
+    }
+    const measure = () => setStripHeight(el.offsetHeight);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [weekHasHolidays, fitScreen, days.length]);
+
   // Navigating away abandons an unconfirmed skeleton.
   const daysKey = days.map(d => d.toISOString()).join("|");
   const roomsKey = rooms.map(r => r.id).join("|");
@@ -381,14 +399,15 @@ export function WeeklyCalendar({
         <div className={gutterClass} />
         {/* Day columns — animated */}
         <div key={animKey} className={`flex flex-1 min-w-0 ${animClass}`} style={roomsStyle}>
-          {rooms.map(room => (
+          {rooms.map((room, roomIndex) => (
             <div key={room.id} className="flex-1 min-w-0 border-l border-border" style={roomStyle}>
               <div className={`font-semibold text-muted-foreground text-center py-1 border-b bg-background sticky top-0 z-10 truncate px-1 ${fitScreen ? "text-[10px]" : "text-xs"}`}>
                 {room.name}
               </div>
               {weekHasHolidays && (
                 <div
-                  className="grid text-center sticky top-6 z-10 h-6 bg-background"
+                  ref={roomIndex === 0 ? holidayStripRef : undefined}
+                  className="grid text-center sticky top-6 z-10 min-h-6 bg-background"
                   style={{ gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))` }}
                 >
                   {days.map(day => {
@@ -397,7 +416,7 @@ export function WeeklyCalendar({
                       <div
                         key={day.toISOString()}
                         title={holiday?.full}
-                        className={`flex items-center justify-center border-r last:border-r-0 px-0.5 leading-none ${
+                        className={`flex items-center justify-center border-r last:border-r-0 px-0.5 py-0.5 leading-tight ${
                           fitScreen ? "text-[8px]" : "text-[10px]"
                         } ${
                           holiday
@@ -407,7 +426,7 @@ export function WeeklyCalendar({
                             : ""
                         }`}
                       >
-                        <span className="truncate">{holiday?.name}</span>
+                        <span className="break-words hyphens-auto">{holiday?.name}</span>
                       </div>
                     );
                   })}
@@ -415,8 +434,11 @@ export function WeeklyCalendar({
               )}
 
               <div
-                className={`grid text-center sticky z-10 bg-background border-b ${weekHasHolidays ? "top-12" : "top-6"}`}
-                style={{ gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))` }}
+                className="grid text-center sticky z-10 bg-background border-b"
+                style={{
+                  gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))`,
+                  top: ROOM_NAME_HEIGHT + (weekHasHolidays ? stripHeight : 0),
+                }}
               >
                 {days.map(day => (
                   <div
@@ -610,7 +632,7 @@ export function WeeklyCalendar({
                         }`}
                         style={{ top: top + 1, height: height - 2 }}
                       >
-                        <span className="block truncate">{block.title}</span>
+                        <span className="block break-words">{block.title}</span>
                       </div>
                     );
                   })}
