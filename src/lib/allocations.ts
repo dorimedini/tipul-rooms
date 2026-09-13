@@ -66,3 +66,45 @@ for (let h = 7; h <= 22; h++) {
 }
 
 export const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+export const DAY_NAMES_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+export type OpeningHours = { day_of_week: number; open_time: string; close_time: string };
+
+/**
+ * Why a booking does not fit the room's opening hours, or null if it does.
+ * A weekday with no row is closed all day.
+ */
+export function hoursViolation(
+  hours: OpeningHours[],
+  dayOfWeek: number,
+  startTime: string,
+  durationMinutes: number
+): string | null {
+  const row = hours.find(h => h.day_of_week === dayOfWeek);
+  if (!row) return `the room is closed on ${DAY_NAMES[dayOfWeek]}`;
+  const open = timeToMinutes(row.open_time);
+  const close = timeToMinutes(row.close_time);
+  const start = timeToMinutes(startTime);
+  if (start < open || start + durationMinutes > close) {
+    return `${DAY_NAMES[dayOfWeek]} hours are ${minutesToTime(open)}–${minutesToTime(close)}`;
+  }
+  return null;
+}
+
+/** Closed [from, to) minute ranges for one weekday, clamped to the calendar window. */
+export function closedRanges(
+  hours: OpeningHours[],
+  dayOfWeek: number,
+  windowStart: number,
+  windowEnd: number
+): Array<[number, number]> {
+  const row = hours.find(h => h.day_of_week === dayOfWeek);
+  if (!row) return [[windowStart, windowEnd]];
+  const open = Math.min(Math.max(timeToMinutes(row.open_time), windowStart), windowEnd);
+  const close = Math.max(Math.min(timeToMinutes(row.close_time), windowEnd), windowStart);
+  const ranges: Array<[number, number]> = [];
+  if (open > windowStart) ranges.push([windowStart, open]);
+  if (close < windowEnd) ranges.push([close, windowEnd]);
+  return ranges;
+}

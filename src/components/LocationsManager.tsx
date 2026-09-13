@@ -160,8 +160,18 @@ export function LocationsManager({ open, onClose, onChanged }: Props) {
       });
     }
     setSaving(false);
-    if (res.ok) { closeRoomForm(); await refresh(); onChanged(); }
-    else { const d = await res.json(); notify(d.error); }
+    const data = await res.json();
+    if (res.ok) {
+      closeRoomForm();
+      await refresh();
+      onChanged();
+      if (data.collisions > 0) {
+        notify(
+          `Hours saved. ${data.collisions} existing booking(s) now fall outside them — ` +
+          `they were left unchanged and all admins have been emailed.`
+        );
+      }
+    } else notify(data.error);
   }
 
   const showRoomForm = addingRoomForLocation !== null || editingRoom !== null;

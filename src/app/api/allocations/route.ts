@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { generateOccurrences, formatDateForDB, doTimesOverlap } from "@/lib/allocations";
+import { generateOccurrences, formatDateForDB, doTimesOverlap, hoursViolation } from "@/lib/allocations";
 import { parseISO } from "date-fns";
 
 export async function POST(req: NextRequest) {
@@ -21,6 +21,20 @@ export async function POST(req: NextRequest) {
   const { data: owner } = await supabase
     .from("profiles").select("id").eq("id", userId).single();
   if (!owner) return NextResponse.json({ error: "Unknown owner" }, { status: 400 });
+
+  // Opening hours. A recurring series repeats on one weekday, so a single check
+  // covers every occurrence.
+  const dayOfWeekForBooking = parseISO(date).getDay();
+  const { data: roomHours } = await supabase
+    .from("room_hours").select("day_of_week, open_time, close_time").eq("room_id", roomId);
+
+  const violation = hoursViolation(roomHours ?? [], dayOfWeekForBooking, startTime, durationMinutes);
+  if (violation) {
+    return NextResponse.json(
+      { error: `Outside opening hours — ${violation}.` },
+      { status: 409 }
+    );
+  }
 
   if (recurring) {
     const start = parseISO(date);

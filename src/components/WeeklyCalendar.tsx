@@ -2,10 +2,10 @@
 
 import { useRef, useEffect, useState } from "react";
 import { format, isSameDay } from "date-fns";
-import { AllocationWithDetails } from "@/lib/supabase/types";
-import { timeToMinutes, minutesToTime } from "@/lib/allocations";
+import { AllocationWithDetails, RoomHours } from "@/lib/supabase/types";
+import { timeToMinutes, minutesToTime, closedRanges } from "@/lib/allocations";
 
-interface Room { id: string; name: string; location_id: string }
+interface Room { id: string; name: string; location_id: string; room_hours?: RoomHours[] }
 
 type DragState = {
   roomId: string;
@@ -209,10 +209,16 @@ export function WeeklyCalendar({
     };
   }, []);
 
+  function closedFor(room: Room, day: Date): Array<[number, number]> {
+    return closedRanges(room.room_hours ?? [], day.getDay(), DAY_START, DAY_END);
+  }
+
   function beginDrag(room: Room, day: Date, clientY: number, clientX: number, cellTop: number) {
     const sh = slotHeightRef.current;
     const y = clientY - cellTop;
     const startMin = Math.max(DAY_START, Math.min(DAY_END - 15, DAY_START + Math.floor(y / sh) * 15));
+    // Closed periods are not bookable; the server rejects them too.
+    if (closedFor(room, day).some(([from, to]) => startMin >= from && startMin < to)) return;
     pointerDownY.current = clientY;
     pointerDownX.current = clientX;
     didDrag.current = false;
@@ -327,6 +333,17 @@ export function WeeklyCalendar({
                     }
                   }}
                 >
+                  {closedFor(room, day).map(([from, to]) => (
+                    <div
+                      key={`closed-${from}`}
+                      className="absolute inset-x-0 bg-muted-foreground/15 pointer-events-none"
+                      style={{
+                        top: ((from - DAY_START) / 15) * slotHeight,
+                        height: ((to - from) / 15) * slotHeight,
+                      }}
+                    />
+                  ))}
+
                   {timeLabels.map(label => {
                     const top = ((timeToMinutes(label) - DAY_START) / 15) * slotHeight;
                     return <div key={label} className="absolute w-full border-t border-border/40" style={{ top }} />;

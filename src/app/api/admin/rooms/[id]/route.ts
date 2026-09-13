@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { emailRoomRemoved } from "@/lib/email";
+import { emailRoomRemoved, emailRoomHoursCollision } from "@/lib/email";
+import { hoursViolation, formatDateForDB, minutesToTimeLabel } from "@/lib/allocations";
+import { format, parseISO } from "date-fns";
 
 export async function DELETE(
   _req: NextRequest,
@@ -69,6 +71,51 @@ export async function PATCH(
         }))
       );
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    // Existing bookings are never moved or cancelled by an hours change. Any that
+    // now fall outside the new hours are reported to the admins instead.
+    const newHours = (hours ?? []).map(
+      (h: { dayOfWeek: number; openTime: string; closeTime: string }) => ({
+        day_of_week: h.dayOfWeek,
+        open_time: h.openTime,
+        close_time: h.closeTime,
+      })
+    );
+
+    const { data: upcoming } = await supabase
+      .from("allocations")
+      .select("date, start_time, duration_minutes, profiles(name)")
+      .eq("room_id", id)
+      .eq("status", "active")
+      .gte("date", formatDateForDB(new Date()))
+      .order("date")
+      .order("start_time");
+
+    const collisions = (upcoming ?? []).filter(
+      a => hoursViolation(newHours, parseISO(a.date).getDay(), a.start_time, a.duration_minutes) !== null
+    );
+
+    if (collisions.length > 0) {
+      const [{ data: roomDetails }, { data: admins }] = await Promise.all([
+        supabase.from("rooms").select("name, locations(name)").eq("id", id).single(),
+        supabase.from("profiles").select("email").eq("is_admin", true),
+      ]);
+
+      if (admins?.length) {
+        await emailRoomHoursCollision({
+          toEmails: admins.map(a => a.email),
+          roomName: roomDetails?.name ?? "",
+          locationName: (roomDetails?.locations as { name: string } | null)?.name ?? "",
+          collisions: collisions.map(c => ({
+            when: `${format(parseISO(c.date), "EEE MMM d")} ${c.start_time.slice(0, 5)}`,
+            duration: minutesToTimeLabel(c.duration_minutes),
+            owner: (c.profiles as unknown as { name: string } | null)?.name ?? "Unknown",
+          })),
+        });
+      }
+
+      return NextResponse.json({ ok: true, collisions: collisions.length });
     }
   }
 

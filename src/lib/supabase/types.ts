@@ -115,6 +115,7 @@ export type Allocation = Database["public"]["Tables"]["allocations"]["Row"];
 export type SwapRequest = Database["public"]["Tables"]["swap_requests"]["Row"];
 
 export type RoomWithLocation = Room & { locations: Location };
+export type RoomWithLocationAndHours = RoomWithLocation & { room_hours: RoomHours[] };
 export type AllocationWithDetails = Allocation & {
   profiles: Profile;
   rooms: RoomWithLocation;

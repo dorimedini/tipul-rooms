@@ -16,7 +16,7 @@ export default async function Home() {
     { data: profile },
   ] = await Promise.all([
     supabase.from("locations").select("*").order("name"),
-    supabase.from("rooms").select("*, locations(*)").order("name"),
+    supabase.from("rooms").select("*, locations(*), room_hours(*)").order("name"),
     supabase.from("profiles").select("*").order("name"),
     supabase.from("profiles").select("*").eq("id", user.id).single(),
   ]);

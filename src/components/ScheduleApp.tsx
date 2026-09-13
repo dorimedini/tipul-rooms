@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { Location, Room, Profile, AllocationWithDetails, SwapRequestWithDetails } from "@/lib/supabase/types";
+import { Location, Room, RoomHours, Profile, AllocationWithDetails, SwapRequestWithDetails } from "@/lib/supabase/types";
 import { WeeklyCalendar } from "./WeeklyCalendar";
 import { BookingDialog } from "./BookingDialog";
 import { AllocationActionDialog } from "./AllocationActionDialog";
@@ -13,7 +13,7 @@ import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { addWeeks, subWeeks, startOfWeek, endOfWeek, format, addDays } from "date-fns";
 
-type RoomWithLocation = Room & { locations: Location };
+type RoomWithLocation = Room & { locations: Location; room_hours: RoomHours[] };
 
 interface Props {
   currentUser: Profile;

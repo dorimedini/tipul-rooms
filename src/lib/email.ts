@@ -142,3 +142,32 @@ export async function emailUnregisteredLogin(opts: {
 <p><a href="${APP_URL()}" style="background:#2563eb;color:#fff;padding:10px 20px;text-decoration:none;border-radius:6px;display:inline-block">Open admin panel</a></p>`
   );
 }
+
+export async function emailRoomHoursCollision(opts: {
+  toEmails: string[];
+  roomName: string;
+  locationName: string;
+  collisions: Array<{ when: string; duration: string; owner: string }>;
+}) {
+  const rows = opts.collisions
+    .map(
+      c => `<tr>
+  <td style="padding:4px 12px 4px 0"><strong>${c.when}</strong></td>
+  <td style="padding:4px 12px 4px 0;color:#666">${c.duration}</td>
+  <td style="padding:4px 0">${c.owner}</td>
+</tr>`
+    )
+    .join("\n");
+
+  await send(
+    opts.toEmails,
+    `Bookings outside new opening hours: ${opts.roomName} at ${opts.locationName}`,
+    `<p>The opening hours for <strong>${opts.roomName}</strong> (${opts.locationName}) were changed, and
+${opts.collisions.length} existing booking(s) now fall outside them.</p>
+<p><strong>These bookings were left exactly as they were</strong> — nothing was moved or cancelled. Someone needs to decide what happens to them.</p>
+<table style="border-collapse:collapse;margin:16px 0">
+${rows}
+</table>
+<p><a href="${APP_URL()}" style="background:#2563eb;color:#fff;padding:10px 20px;text-decoration:none;border-radius:6px;display:inline-block">Open Tipul Rooms</a></p>`
+  );
+}
