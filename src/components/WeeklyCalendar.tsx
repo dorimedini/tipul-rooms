@@ -16,6 +16,27 @@ type DragState = {
   cellTop: number;
 };
 
+/**
+ * Touch devices don't drag-to-create: a tap drops a skeleton the user can nudge
+ * and resize, and only tapping the skeleton opens the booking form. That keeps
+ * plain swipes free for scrolling.
+ */
+type Skeleton = {
+  roomId: string;
+  day: Date;
+  startMin: number;
+  endMin: number;
+};
+
+type SkeletonGesture = {
+  mode: "move" | "resize-start" | "resize-end";
+  originY: number;
+  startMin: number;
+  endMin: number;
+  cellTop: number;
+  moved: boolean;
+};
+
 interface Props {
   days: Date[];
   rooms: Room[];
@@ -39,6 +60,11 @@ const DAY_START = 7 * 60;
 const DAY_END = 22 * 60;
 const TOTAL_MINUTES = DAY_END - DAY_START;
 const DRAG_THRESHOLD = DEFAULT_SLOT_HEIGHT;
+const SKELETON_MOVE_THRESHOLD = 6; // px before a touch counts as a drag, not a tap
+const SKELETON_DEFAULT_MINUTES = 60;
+// allocations.duration_minutes is checked >= 30 in the schema, so the skeleton
+// must not let a user retract below a bookable length.
+const SKELETON_MIN_MINUTES = 30;
 
 const COLORS = [
   "bg-blue-100 border-blue-400 text-blue-900",
@@ -54,6 +80,10 @@ const COLORS = [
 function userColor(userId: string, allUserIds: string[]): string {
   const idx = allUserIds.indexOf(userId);
   return COLORS[idx % COLORS.length] ?? COLORS[0];
+}
+
+function clampMin(value: number, lo: number, hi: number): number {
+  return Math.max(lo, Math.min(hi, value));
 }
 
 function shortHour(label: string): string {
@@ -83,6 +113,17 @@ export function WeeklyCalendar({
     timeLabels.push(minutesToTime(m));
   }
 
+  // ── Input mode ───────────────────────────────────────────────────────────
+  // Coarse pointer = phone/tablet. Desktop keeps drag-to-create untouched.
+  const [isTouch, setIsTouch] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(pointer: coarse)");
+    const apply = () => setIsTouch(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
+
   // ── Zoom (pinch on mobile) ───────────────────────────────────────────────
   const [slotHeight, setSlotHeight] = useState(DEFAULT_SLOT_HEIGHT);
   const slotHeightRef = useRef(slotHeight);
@@ -92,6 +133,18 @@ export function WeeklyCalendar({
   const calendarBodyRef = useRef<HTMLDivElement>(null);
   const pinchRef = useRef<{ dist: number; baseHeight: number } | null>(null);
 
+  // ── Skeleton event (touch) ───────────────────────────────────────────────
+  const [skeleton, setSkeleton] = useState<Skeleton | null>(null);
+  const skeletonRef = useRef<Skeleton | null>(null);
+  skeletonRef.current = skeleton;
+  const skeletonGesture = useRef<SkeletonGesture | null>(null);
+  const skeletonMoved = useRef(false);
+
+  // Navigating away abandons an unconfirmed skeleton.
+  const daysKey = days.map(d => d.toISOString()).join("|");
+  const roomsKey = rooms.map(r => r.id).join("|");
+  useEffect(() => { setSkeleton(null); }, [daysKey, roomsKey]);
+
   // ── Drag-to-create ───────────────────────────────────────────────────────
   const [drag, setDrag] = useState<DragState | null>(null);
   const dragRef = useRef<DragState | null>(null);
@@ -100,7 +153,6 @@ export function WeeklyCalendar({
   onSlotClickRef.current = onSlotClick;
   const didDrag = useRef(false);
   const pointerDownY = useRef(0);
-  const pointerDownX = useRef(0);
 
   // Cursor / text-selection during drag
   useEffect(() => {
@@ -175,29 +227,44 @@ export function WeeklyCalendar({
         setSlotHeight(newH);
         return;
       }
-      // Single-finger drag
-      if (e.touches.length !== 1 || !dragRef.current) return;
-      const y = e.touches[0].clientY;
-      const x = e.touches[0].clientX;
-      const dy = Math.abs(y - pointerDownY.current);
-      const dx = Math.abs(x - pointerDownX.current);
-      // Horizontal swipe → cancel drag so ScheduleApp can handle navigation
-      if (dx > DRAG_THRESHOLD && dx > dy) {
-        setDrag(null);
-        didDrag.current = false;
-        return;
-      }
-      if (!didDrag.current && dy > DRAG_THRESHOLD) {
-        didDrag.current = true;
-      }
-      if (!didDrag.current) return;
+      // Moving or resizing the skeleton. Anything else is left to the browser,
+      // so an ordinary swipe scrolls the page.
+      const g = skeletonGesture.current;
+      if (e.touches.length !== 1 || !g) return;
+
+      const dy = e.touches[0].clientY - g.originY;
+      if (!g.moved && Math.abs(dy) < SKELETON_MOVE_THRESHOLD) return;
+      g.moved = true;
       e.preventDefault();
-      setDrag(prev => prev ? { ...prev, endMin: yToMin(y) } : null);
+
+      const sh = slotHeightRef.current;
+      const deltaMin = Math.round(dy / sh) * 15;
+      const span = g.endMin - g.startMin;
+
+      setSkeleton(prev => {
+        if (!prev) return prev;
+        if (g.mode === "move") {
+          const start = clampMin(g.startMin + deltaMin, DAY_START, DAY_END - span);
+          return { ...prev, startMin: start, endMin: start + span };
+        }
+        if (g.mode === "resize-start") {
+          const start = clampMin(g.startMin + deltaMin, DAY_START, g.endMin - SKELETON_MIN_MINUTES);
+          return { ...prev, startMin: start };
+        }
+        const end = clampMin(g.endMin + deltaMin, g.startMin + SKELETON_MIN_MINUTES, DAY_END);
+        return { ...prev, endMin: end };
+      });
     }
 
     function onTouchEnd(e: TouchEvent) {
       if (pinchRef.current) {
         if (e.touches.length < 2) pinchRef.current = null;
+        return;
+      }
+      if (skeletonGesture.current) {
+        // A gesture that actually moved must not also register as a tap.
+        skeletonMoved.current = skeletonGesture.current.moved;
+        skeletonGesture.current = null;
         return;
       }
       if (dragRef.current) finish(e.changedTouches[0].clientY);
@@ -227,7 +294,58 @@ export function WeeklyCalendar({
     return holidayBlocks.filter(b => b.date === key);
   }
 
-  function beginDrag(room: Room, day: Date, clientY: number, clientX: number, cellTop: number) {
+  function minuteAt(clientY: number, cellTop: number): number {
+    const sh = slotHeightRef.current;
+    return clampMin(
+      DAY_START + Math.floor((clientY - cellTop) / sh) * 15,
+      DAY_START,
+      DAY_END - 15
+    );
+  }
+
+  function isBlockedAt(room: Room, day: Date, minute: number): boolean {
+    if (closedFor(room, day).some(([from, to]) => minute >= from && minute < to)) return true;
+    return blocksFor(day).some(
+      b => minute >= timeToMinutes(b.start_time) && minute < timeToMinutes(b.end_time)
+    );
+  }
+
+  // Touch: a tap either dismisses the current skeleton or drops a new one.
+  function handleCellTap(room: Room, day: Date, clientY: number, cellTop: number) {
+    if (skeletonRef.current) {
+      setSkeleton(null);
+      return;
+    }
+    if (!canBook) return;
+    const startMin = minuteAt(clientY, cellTop);
+    if (isBlockedAt(room, day, startMin)) return;
+    setSkeleton({
+      roomId: room.id,
+      day,
+      startMin,
+      endMin: Math.min(DAY_END, startMin + SKELETON_DEFAULT_MINUTES),
+    });
+  }
+
+  function beginSkeletonGesture(
+    e: React.TouchEvent,
+    mode: "move" | "resize-start" | "resize-end"
+  ) {
+    const current = skeletonRef.current;
+    if (!current || e.touches.length !== 1) return;
+    e.stopPropagation();
+    skeletonMoved.current = false;
+    skeletonGesture.current = {
+      mode,
+      originY: e.touches[0].clientY,
+      startMin: current.startMin,
+      endMin: current.endMin,
+      cellTop: 0,
+      moved: false,
+    };
+  }
+
+  function beginDrag(room: Room, day: Date, clientY: number, cellTop: number) {
     const sh = slotHeightRef.current;
     const y = clientY - cellTop;
     const startMin = Math.max(DAY_START, Math.min(DAY_END - 15, DAY_START + Math.floor(y / sh) * 15));
@@ -236,7 +354,6 @@ export function WeeklyCalendar({
     if (blocksFor(day).some(b =>
       startMin >= timeToMinutes(b.start_time) && startMin < timeToMinutes(b.end_time))) return;
     pointerDownY.current = clientY;
-    pointerDownX.current = clientX;
     didDrag.current = false;
     setDrag({ roomId: room.id, day, startMin, endMin: Math.min(DAY_END, startMin + 60), cellTop });
   }
@@ -363,18 +480,24 @@ export function WeeklyCalendar({
               return (
                 <div
                   key={dayStr}
-                  className="relative border-r border-b last:border-r-0 select-none touch-none"
-                  style={{ height: totalHeight, cursor: canBook ? "crosshair" : "default" }}
-                  onMouseDown={e => {
-                    if (!canBook || e.button !== 0) return;
-                    e.preventDefault();
-                    beginDrag(room, day, e.clientY, e.clientX, e.currentTarget.getBoundingClientRect().top);
+                  className={`relative border-r border-b last:border-r-0 select-none ${
+                    isTouch ? "touch-pan-y" : "touch-none"
+                  }`}
+                  style={{
+                    height: totalHeight,
+                    cursor: !isTouch && canBook ? "crosshair" : "default",
                   }}
-                  onTouchStart={e => {
-                    if (canBook && e.touches.length === 1) {
-                      const t = e.touches[0];
-                      beginDrag(room, day, t.clientY, t.clientX, e.currentTarget.getBoundingClientRect().top);
-                    }
+                  onMouseDown={e => {
+                    // Touch devices synthesise mouse events after a tap; ignore them.
+                    if (isTouch || !canBook || e.button !== 0) return;
+                    e.preventDefault();
+                    beginDrag(room, day, e.clientY, e.currentTarget.getBoundingClientRect().top);
+                  }}
+                  onClick={e => {
+                    // Only fires after a genuine tap — the browser suppresses click
+                    // when the gesture turned into a scroll.
+                    if (!isTouch) return;
+                    handleCellTap(room, day, e.clientY, e.currentTarget.getBoundingClientRect().top);
                   }}
                 >
                   {closedFor(room, day).map(([from, to]) => (
@@ -411,7 +534,7 @@ export function WeeklyCalendar({
                         style={{ top: top + 1, height: height - 2, cursor: "pointer" }}
                         onMouseDown={e => e.stopPropagation()}
                         onTouchStart={e => e.stopPropagation()}
-                        onClick={e => { e.stopPropagation(); onAllocationClick(alloc); }}
+                        onClick={e => { e.stopPropagation(); setSkeleton(null); onAllocationClick(alloc); }}
                         title={[alloc.profiles?.name, alloc.title, `${alloc.start_time.slice(0, 5)} (${alloc.duration_minutes}min)`].filter(Boolean).join(" · ")}
                       >
                         <div className={`font-medium leading-tight overflow-hidden ${fitScreen ? "text-[9px] break-words" : "text-xs truncate"}`}>
@@ -425,6 +548,54 @@ export function WeeklyCalendar({
                       </div>
                     );
                   })}
+
+                  {skeleton && skeleton.roomId === room.id && isSameDay(skeleton.day, day) && (
+                    <div
+                      className="absolute left-0.5 right-0.5 z-30 touch-none rounded border-2 border-[#003049] bg-[#003049]/20"
+                      style={{
+                        top: ((skeleton.startMin - DAY_START) / 15) * slotHeight,
+                        height: ((skeleton.endMin - skeleton.startMin) / 15) * slotHeight,
+                      }}
+                      onTouchStart={e => beginSkeletonGesture(e, "move")}
+                      onClick={e => {
+                        e.stopPropagation();
+                        if (skeletonMoved.current) { skeletonMoved.current = false; return; }
+                        onSlotClick(
+                          skeleton.roomId,
+                          skeleton.day,
+                          minutesToTime(skeleton.startMin),
+                          skeleton.endMin - skeleton.startMin
+                        );
+                        setSkeleton(null);
+                      }}
+                    >
+                      {/* Grab bars: drag to change the start or the end */}
+                      <div
+                        className="absolute -top-1 left-0 right-0 h-4 touch-none"
+                        onTouchStart={e => beginSkeletonGesture(e, "resize-start")}
+                        onClick={e => e.stopPropagation()}
+                      >
+                        <div className="mx-auto mt-1 h-1 w-8 rounded-full bg-[#003049]" />
+                      </div>
+                      <div
+                        className="absolute -bottom-1 left-0 right-0 h-4 touch-none"
+                        onTouchStart={e => beginSkeletonGesture(e, "resize-end")}
+                        onClick={e => e.stopPropagation()}
+                      >
+                        <div className="mx-auto mt-2 h-1 w-8 rounded-full bg-[#003049]" />
+                      </div>
+
+                      <div
+                        className={`pointer-events-none overflow-hidden px-0.5 pt-1 font-medium leading-tight text-[#003049] ${
+                          fitScreen ? "text-[8px]" : "px-1 text-[10px]"
+                        }`}
+                      >
+                        {minutesToTime(skeleton.startMin)}
+                        {!fitScreen && `–${minutesToTime(skeleton.endMin)}`}
+                        {!fitScreen && <div className="opacity-70">Tap to book</div>}
+                      </div>
+                    </div>
+                  )}
 
                   {blocksFor(day).map(block => {
                     const top = ((timeToMinutes(block.start_time) - DAY_START) / 15) * slotHeight;
