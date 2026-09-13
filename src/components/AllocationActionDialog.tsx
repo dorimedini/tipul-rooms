@@ -17,6 +17,7 @@ interface Props {
   allocation: AllocationWithDetails;
   rooms: RoomWithLocation[];
   currentUserId: string;
+  isAdmin: boolean;
   allAllocations: AllocationWithDetails[];
   onClose: () => void;
   onUpdate: () => void;
@@ -29,6 +30,7 @@ export function AllocationActionDialog({
   allocation,
   rooms,
   currentUserId,
+  isAdmin,
   allAllocations,
   onClose,
   onUpdate,
@@ -129,6 +131,7 @@ export function AllocationActionDialog({
 
         <div className="text-sm text-gray-600 space-y-1 pb-2 border-b">
           <div>
+            <span className="text-gray-400 mr-1.5">Owner:</span>
             <span className="font-medium">{allocation.profiles?.name}</span>
             <span className="text-gray-400 ml-2">{allocation.profiles?.email}</span>
           </div>
@@ -140,7 +143,7 @@ export function AllocationActionDialog({
 
         {view === "menu" && (
           <div className="flex flex-col gap-2">
-            {isOwn ? (
+            {isAdmin && (
               <>
                 <Button variant="outline" onClick={() => setView("cancel_confirm")}>
                   Cancel booking
@@ -150,6 +153,10 @@ export function AllocationActionDialog({
                     Move subsequent sessions
                   </Button>
                 )}
+              </>
+            )}
+            {isOwn ? (
+              <>
                 {swappableAllocations.length > 0 && (
                   <div className="mt-2 pt-2 border-t">
                     <Label className="text-sm mb-2 block">Request swap with</Label>

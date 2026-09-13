@@ -22,10 +22,11 @@ interface Props {
   onSaved: () => void;
 }
 
-export function BookingDialog({ slot, rooms, currentUser, locations, onClose, onSaved }: Props) {
+export function BookingDialog({ slot, rooms, currentUser, allProfiles, locations, onClose, onSaved }: Props) {
   const [roomId, setRoomId] = useState(slot.roomId);
   const [startTime, setStartTime] = useState(slot.startTime);
   const [duration, setDuration] = useState(slot.durationMinutes ?? 60);
+  const [ownerId, setOwnerId] = useState(currentUser.id);
   const [recurring, setRecurring] = useState(false);
   const [title, setTitle] = useState("");
   const [seriesEnd, setSeriesEnd] = useState(format(addMonths(slot.date, 10), "yyyy-MM-dd"));
@@ -46,6 +47,7 @@ export function BookingDialog({ slot, rooms, currentUser, locations, onClose, on
           date: format(slot.date, "yyyy-MM-dd"),
           startTime,
           durationMinutes: duration,
+          ownerId,
           title: title.trim() || null,
           recurring,
           seriesEnd,
@@ -64,6 +66,13 @@ export function BookingDialog({ slot, rooms, currentUser, locations, onClose, on
   }
 
   const room = rooms.find(r => r.id === roomId);
+
+  // Current user first, everyone else alphabetically.
+  const ownerOptions = [...allProfiles].sort((a, b) =>
+    a.id === currentUser.id ? -1 : b.id === currentUser.id ? 1 : a.name.localeCompare(b.name)
+  );
+  const owner = ownerOptions.find(p => p.id === ownerId);
+  const ownerLabel = (p: Profile) => p.id === currentUser.id ? `${p.name} (me)` : p.name;
 
   return (
     <Dialog open onOpenChange={onClose}>
@@ -126,6 +135,25 @@ export function BookingDialog({ slot, rooms, currentUser, locations, onClose, on
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div className="grid gap-2">
+            <Label>Owner</Label>
+            <Select value={ownerId} onValueChange={v => v && setOwnerId(v)}>
+              <SelectTrigger>
+                <span className="flex flex-1 text-left truncate">
+                  {owner ? ownerLabel(owner) : "Select owner…"}
+                </span>
+              </SelectTrigger>
+              <SelectContent>
+                {ownerOptions.map(p => (
+                  <SelectItem key={p.id} value={p.id}>
+                    <span>{ownerLabel(p)}</span>
+                    <span className="text-xs text-gray-400">{p.email}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="grid gap-2">

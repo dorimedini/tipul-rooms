@@ -20,6 +20,7 @@ interface Props {
   rooms: Room[];
   allocations: AllocationWithDetails[];
   currentUserId: string;
+  canBook: boolean;
   loading: boolean;
   fitScreen?: boolean;
   animKey?: number;
@@ -63,7 +64,7 @@ function pinchDist(touches: TouchList): number {
 }
 
 export function WeeklyCalendar({
-  days, rooms, allocations, currentUserId, loading,
+  days, rooms, allocations, currentUserId, canBook, loading,
   fitScreen = false, animKey, animClass = "",
   onSlotClick, onAllocationClick,
 }: Props) {
@@ -313,14 +314,14 @@ export function WeeklyCalendar({
                 <div
                   key={dayStr}
                   className="relative border-r border-b last:border-r-0 select-none touch-none"
-                  style={{ height: totalHeight, cursor: "crosshair" }}
+                  style={{ height: totalHeight, cursor: canBook ? "crosshair" : "default" }}
                   onMouseDown={e => {
-                    if (e.button !== 0) return;
+                    if (!canBook || e.button !== 0) return;
                     e.preventDefault();
                     beginDrag(room, day, e.clientY, e.clientX, e.currentTarget.getBoundingClientRect().top);
                   }}
                   onTouchStart={e => {
-                    if (e.touches.length === 1) {
+                    if (canBook && e.touches.length === 1) {
                       const t = e.touches[0];
                       beginDrag(room, day, t.clientY, t.clientX, e.currentTarget.getBoundingClientRect().top);
                     }
@@ -353,10 +354,9 @@ export function WeeklyCalendar({
                         title={[alloc.profiles?.name, alloc.title, `${alloc.start_time.slice(0, 5)} (${alloc.duration_minutes}min)`].filter(Boolean).join(" · ")}
                       >
                         <div className={`font-medium leading-tight overflow-hidden ${fitScreen ? "text-[9px] break-words" : "text-xs truncate"}`}>
-                          {alloc.profiles?.name?.split(" ")[0]}
-                          {alloc.title && <span className="font-normal opacity-80"> · {alloc.title}</span>}
+                          {alloc.title || alloc.start_time.slice(0, 5)}
                         </div>
-                        {!fitScreen && height > 24 && (
+                        {!fitScreen && height > 24 && alloc.title && (
                           <div className="text-xs opacity-70 leading-tight">
                             {alloc.start_time.slice(0, 5)}
                           </div>

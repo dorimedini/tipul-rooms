@@ -8,8 +8,19 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const { data: caller } = await supabase
+    .from("profiles").select("is_admin").eq("id", user.id).single();
+  if (!caller?.is_admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
   const body = await req.json();
-  const { roomId, date, startTime, durationMinutes, title, recurring, seriesEnd } = body;
+  const { roomId, date, startTime, durationMinutes, title, recurring, seriesEnd, ownerId } = body;
+
+  // The allocation's user_id is its owner — the therapist the slot is for,
+  // picked in the booking dialog. It carries no permission over the booking.
+  const userId: string = ownerId ?? user.id;
+  const { data: owner } = await supabase
+    .from("profiles").select("id").eq("id", userId).single();
+  if (!owner) return NextResponse.json({ error: "Unknown owner" }, { status: 400 });
 
   if (recurring) {
     const start = parseISO(date);
@@ -40,7 +51,7 @@ export async function POST(req: NextRequest) {
     const { data: series, error: seriesErr } = await supabase
       .from("allocation_series")
       .insert({
-        user_id: user.id,
+        user_id: userId,
         room_id: roomId,
         day_of_week: dayOfWeek,
         start_time: startTime,
@@ -57,7 +68,7 @@ export async function POST(req: NextRequest) {
     const { error: insertErr } = await supabase.from("allocations").insert(
       dates.map(d => ({
         series_id: series.id,
-        user_id: user.id,
+        user_id: userId,
         room_id: roomId,
         date: formatDateForDB(d),
         start_time: startTime,
@@ -87,7 +98,7 @@ export async function POST(req: NextRequest) {
 
     const { data, error } = await supabase
       .from("allocations")
-      .insert({ user_id: user.id, room_id: roomId, date, start_time: startTime, duration_minutes: durationMinutes, title: title ?? null })
+      .insert({ user_id: userId, room_id: roomId, date, start_time: startTime, duration_minutes: durationMinutes, title: title ?? null })
       .select()
       .single();
 

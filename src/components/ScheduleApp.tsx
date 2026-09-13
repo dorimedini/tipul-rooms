@@ -338,6 +338,7 @@ export function ScheduleApp({ currentUser, locations, rooms, allProfiles }: Prop
               rooms={[selectedRoom]}
               allocations={allocations}
               currentUserId={currentUser.id}
+              canBook={currentUser.is_admin}
               loading={loading}
               fitScreen={isMobile && calendarView === "week"}
               animKey={calKey}
@@ -388,6 +389,7 @@ export function ScheduleApp({ currentUser, locations, rooms, allProfiles }: Prop
           allocation={actionAllocation}
           rooms={rooms}
           currentUserId={currentUser.id}
+          isAdmin={currentUser.is_admin}
           allAllocations={allocations}
           onClose={() => setActionAllocation(null)}
           onUpdate={() => { setActionAllocation(null); fetchAllocations(); }}

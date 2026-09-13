@@ -23,7 +23,11 @@ export async function PATCH(
     .single();
 
   if (fetchErr || !allocation) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  if (allocation.user_id !== user.id) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  // Cancelling and moving are admin-only; the booking's owner has no say.
+  const { data: caller } = await supabase
+    .from("profiles").select("is_admin").eq("id", user.id).single();
+  if (!caller?.is_admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   if (action === "cancel_single") {
     const { error } = await supabase
